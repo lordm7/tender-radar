@@ -5,6 +5,7 @@ Commands:
   match   run the rule filter + AI scoring (all companies, or --profile ID)
   brief   summarise a tender booklet PDF into a bid brief
   export  write the read-only static demo site (for GitHub Pages)
+  digest  email today's best matches to yourself (or save a preview without SMTP)
   import  read tenders from Etimad list text/HTML that a person copied or saved (kept private)
 """
 
@@ -161,6 +162,38 @@ def _cmd_export(args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def _cmd_digest(args: argparse.Namespace, settings: Settings) -> int:
+    from tender_radar.digest import build_digest, send_digest
+
+    engine = make_engine(settings.database_url)
+    init_db(engine)
+    out = Path(args.out)
+    with session_scope(engine) as s:
+        profiles = _pick_profiles(s, args.profile, default_all=True)
+        if profiles is None:
+            return 1
+        digests = [(p, build_digest(s, p, args.today)) for p in profiles]
+    engine.dispose()
+    for profile, digest in digests:
+        if digest.count == 0:
+            print(f"{profile.name}: nothing new worth emailing today")
+            continue
+        if args.dry_run or not settings.smtp_configured:
+            out.mkdir(parents=True, exist_ok=True)
+            preview = out / f"{profile.id}.html"
+            preview.write_text(digest.html, encoding="utf-8")
+            why = "dry run" if args.dry_run else "SMTP not configured"
+            print(f"{profile.name}: {digest.count} matches, not sent ({why}); preview saved to {preview}")
+            continue
+        try:
+            send_digest(digest, settings)
+        except OSError as exc:  # smtplib errors are OSErrors too
+            print(f"{profile.name}: sending failed ({exc.__class__.__name__}: {exc})")
+            return 1
+        print(f"{profile.name}: {digest.count} matches sent to {settings.digest_to}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tender_radar", description="Tender Radar command line")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -185,6 +218,13 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("--today", type=date.fromisoformat, default=date.today(), help="YYYY-MM-DD")
     export.add_argument("--profile", help="export one company only (default: every company)")
     export.set_defaults(handler=_cmd_export)
+
+    digest = sub.add_parser("digest", help="email today's best matches to yourself")
+    digest.add_argument("--profile", help="company id (default: every company)")
+    digest.add_argument("--dry-run", action="store_true", help="never send; only save a preview")
+    digest.add_argument("--out", default="digests", help="folder for previews (default: digests)")
+    digest.add_argument("--today", type=date.fromisoformat, default=date.today(), help="YYYY-MM-DD")
+    digest.set_defaults(handler=_cmd_digest)
 
     imp = sub.add_parser("import", help="import Etimad list text/HTML you copied or saved (private)")
     imp.add_argument("paths", nargs="+", help=".txt (copied text) or .html (saved page) files")

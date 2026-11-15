@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ar">
+<head><meta charset="utf-8"><title>Tender Radar digest</title></head>
+<body style="margin:0;background:#f8fafc;font-family:Tahoma,Arial,sans-serif;color:#1e293b">
+  <div style="max-width:640px;margin:0 auto;padding:24px">
+    <div style="background:#065f46;color:#fff;border-radius:12px;padding:16px 20px">
+      <div style="font-size:18px;font-weight:bold">Tender Radar · رادار المنافسات</div>
+      <div style="font-size:13px;opacity:.85">{{ profile.name }} · {{ today.isoformat() }}</div>
+    </div>
+    <p style="font-size:14px">{{ rows|length }} tenders worth a look today:</p>
+    {% for r in rows %}
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:10px">
+      <div style="display:inline-block;background:{{ '#059669' if r.match.score >= 80 else '#d97706' }};color:#fff;border-radius:8px;padding:2px 10px;font-weight:bold">{{ r.match.score }}</div>
+      <div dir="rtl" style="font-size:15px;font-weight:bold;margin-top:8px">{{ r.tender.title }}</div>
+      <div dir="rtl" style="font-size:13px;color:#475569">{{ r.tender.agency }}</div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px">{{ r.tender.reference }} · {{ deadline_label(r.tender.deadline) }}</div>
+      {% if r.match.reasons_en %}<div style="font-size:13px;margin-top:6px">{{ r.match.reasons_en[0] }}</div>{% endif %}
+      {% if r.match.reasons_ar %}<div dir="rtl" style="font-size:13px;color:#334155">{{ r.match.reasons_ar[0] }}</div>{% endif %}
+      {% if r.tender.source_url %}<div style="font-size:12px;margin-top:6px"><a href="{{ r.tender.source_url }}" style="color:#047857">View on Etimad</a></div>{% endif %}
+    </div>
+    {% endfor %}
+    <p style="font-size:11px;color:#94a3b8">AI scores are a first filter, not a bid decision. Sent by your own Tender Radar run.</p>
+  </div>
+</body>
+</html>

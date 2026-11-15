@@ -41,3 +41,13 @@ class Settings:
     ai_provider: str = field(default_factory=lambda: _env("TR_AI_PROVIDER", "fake"))
     gemini_model: str | None = field(default_factory=lambda: _env("TR_GEMINI_MODEL"))
     gemini_api_key: str | None = field(default_factory=lambda: _env("GEMINI_API_KEY"))
+    # Daily email digest (optional). With Gmail: smtp.gmail.com, port 587 and an "app password".
+    smtp_host: str | None = field(default_factory=lambda: _env("TR_SMTP_HOST"))
+    smtp_port: int = field(default_factory=lambda: int(_env("TR_SMTP_PORT", "587")))
+    smtp_user: str | None = field(default_factory=lambda: _env("TR_SMTP_USER"))
+    smtp_password: str | None = field(default_factory=lambda: _env("TR_SMTP_PASSWORD"))
+    digest_to: str | None = field(default_factory=lambda: _env("TR_DIGEST_TO"))
+
+    @property
+    def smtp_configured(self) -> bool:
+        return all([self.smtp_host, self.smtp_user, self.smtp_password, self.digest_to])
