@@ -27,7 +27,7 @@ def test_export_writes_index_and_detail_pages(db_settings, tmp_path):
     run_export(db_settings, out)
     assert (out / "index.html").exists()
     assert len(list((out / "tenders").glob("*.html"))) == 9
-    assert (out / "tenders" / "TR-2026-1004.html").exists()
+    assert (out / "tenders" / "261139001004.html").exists()
     assert (out / "briefs" / "sample.html").exists()
     assert (out / "static" / "app.js").exists()
     assert "scores precomputed on 2026-11-15" in (out / "index.html").read_text(encoding="utf-8")

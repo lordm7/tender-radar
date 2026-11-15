@@ -58,3 +58,11 @@ def test_brief_roundtrip_latest(engine):
         assert get_brief(s, id_a) == a
         assert latest_brief(s) == ("b.pdf", b)
         assert latest_brief(s, "a.pdf") == ("a.pdf", a)
+
+
+def test_new_fields_survive_the_database(engine, seed_tenders):
+    t = seed_tenders[0].model_copy(update={"deadline_time": "13:30", "booklet_price_sar": 500.0, "source_url": "https://example.invalid"})
+    with session_scope(engine) as s:
+        upsert_tenders(s, [t])
+    with session_scope(engine) as s:
+        assert list_tenders(s)[0] == t

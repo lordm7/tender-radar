@@ -27,6 +27,10 @@ class Tender(BaseModel):
     region: str | None = None
     published_on: date | None = None
     deadline: date | None = None
+    inquiry_deadline: date | None = None  # last day to send questions to the agency
+    deadline_time: str | None = None  # closing time on the deadline day, "HH:MM"
+    booklet_price_sar: float | None = None  # price of the tender documents; 0 = free
+    source_url: str | None = None  # link to the original listing (real imports only)
     estimated_value_sar: float | None = None
     description: str = ""
     source: str = "seed"

@@ -23,7 +23,7 @@ def result_refs(html: str) -> list[str]:
 
 def test_dashboard_lists_scored_first(client):
     refs = result_refs(client.get("/").text)
-    assert refs[0] == "TR-2026-1004"
+    assert refs[0] == "261139001004"
     assert len(refs) == 9
 
 
@@ -37,7 +37,7 @@ def test_missing_deadline_label(client):
     assert deadline_label(None, TODAY) == "غير محدد / not stated"
     assert deadline_label(TODAY, TODAY) == "Closes today"
     assert deadline_label(date(2026, 11, 27), TODAY) == "12 days left"
-    assert "غير محدد / not stated" in client.get("/tenders/TR-2026-1006").text
+    assert "غير محدد / not stated" in client.get("/tenders/261139001006").text
 
 
 def test_arabic_title_has_dir_auto(client):
@@ -61,6 +61,16 @@ def test_read_only_hides_profile_link(db_settings):
 
 
 def test_dashboard_moves_expired_tenders_to_filtered(db_settings):
-    # Matching ran on 2026-11-15; viewing on 2026-12-03 means TR-2026-1002 (deadline 2026-12-01) has closed.
+    # Matching ran on 2026-11-15; viewing on 2026-12-03 means 261139001002 (deadline 2026-12-01) has closed.
     html = TestClient(create_app(db_settings, today=date(2026, 12, 3))).get("/").text
-    assert "TR-2026-1002" not in result_refs(html)
+    assert "261139001002" not in result_refs(html)
+
+
+def test_tender_page_shows_etimad_card_fields(client):
+    html = client.get("/tenders/261139001002").text  # paid booklet (500), closes 12:00
+    assert "500 SAR" in html
+    assert "12:00" in html
+    assert "Inquiries until" in html
+    assert "View on Etimad" not in html  # seed tenders have no source link
+    free = client.get("/tenders/261139001001").text
+    assert "مجانا / Free" in free

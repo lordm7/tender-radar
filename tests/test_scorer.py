@@ -9,7 +9,7 @@ from tender_radar.repository import get_match, upsert_tenders
 
 TODAY = date(2026, 11, 15)
 PASSING = 9  # seed tenders that pass the rule filter (see test_rules.test_seed_data_split)
-FIRST_PASSING = "TR-2026-1001"
+FIRST_PASSING = "261139001001"
 VALID = {"score": 88, "reasons_en": ["strong fit"], "reasons_ar": ["مناسب جدا"]}
 
 

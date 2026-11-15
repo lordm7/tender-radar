@@ -28,10 +28,15 @@
     <div><dt class="text-slate-500">Agency</dt><dd dir="auto" class="ar">{{ tender.agency }}</dd></div>
     <div><dt class="text-slate-500">Activity</dt><dd dir="auto" class="ar">{{ tender.activity }}</dd></div>
     <div><dt class="text-slate-500">Region</dt><dd dir="auto" class="ar">{{ tender.region or "—" }}</dd></div>
-    <div><dt class="text-slate-500">Deadline</dt><dd>{{ tender.deadline.isoformat() if tender.deadline else "" }} ({{ deadline_label(tender.deadline) }})</dd></div>
+    <div><dt class="text-slate-500">Deadline</dt><dd>{{ tender.deadline.isoformat() if tender.deadline else "" }}{% if tender.deadline_time %} {{ tender.deadline_time }}{% endif %} ({{ deadline_label(tender.deadline) }})</dd></div>
+    <div><dt class="text-slate-500">Inquiries until</dt><dd>{{ tender.inquiry_deadline.isoformat() if tender.inquiry_deadline else "—" }}</dd></div>
+    <div><dt class="text-slate-500">Booklet price</dt><dd dir="auto">{% if tender.booklet_price_sar is none %}—{% elif tender.booklet_price_sar == 0 %}مجانا / Free{% else %}{{ "{:,.0f} SAR".format(tender.booklet_price_sar) }}{% endif %}</dd></div>
     <div><dt class="text-slate-500">Estimated value</dt><dd>{{ "{:,.0f} SAR".format(tender.estimated_value_sar) if tender.estimated_value_sar else "—" }}</dd></div>
     <div><dt class="text-slate-500">Published</dt><dd>{{ tender.published_on.isoformat() if tender.published_on else "—" }}</dd></div>
   </dl>
+  {% if tender.source_url %}
+  <a href="{{ tender.source_url }}" target="_blank" rel="noopener" class="mt-6 inline-block text-sm text-emerald-700 hover:underline">View on Etimad ↗</a>
+  {% endif %}
   {% if tender.description %}
   <p dir="auto" class="ar mt-6 leading-relaxed text-slate-700">{{ tender.description }}</p>
   {% endif %}
