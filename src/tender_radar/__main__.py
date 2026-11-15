@@ -21,7 +21,7 @@ from pydantic import ValidationError
 from tender_radar.ai.provider import AIError, get_provider
 from tender_radar.db import init_db, make_engine, session_scope
 from tender_radar.matching.scorer import run_matching
-from tender_radar.models import load_profile, load_seed_tenders
+from tender_radar.models import SEED_ANCHOR, load_profile, load_seed_tenders, shift_dates
 from tender_radar.reader.brief import build_brief
 from tender_radar.reader.pdf_text import UnreadablePDF, extract_pages
 from tender_radar.models import CompanyProfile
@@ -36,7 +36,10 @@ def _cmd_seed(args: argparse.Namespace, settings: Settings) -> int:
     engine = make_engine(settings.database_url)
     init_db(engine)
     with session_scope(engine) as s:
-        stats = upsert_tenders(s, load_seed_tenders(SEED_DIR / "tenders.json"))
+        tenders = load_seed_tenders(SEED_DIR / "tenders.json")
+        if args.rolling:  # keep the public demo current: move every date forward to today
+            tenders = shift_dates(tenders, anchor=SEED_ANCHOR, today=args.today)
+        stats = upsert_tenders(s, tenders)
         profiles = [load_profile(path) for path in sorted(SEED_DIR.glob("profile_*.json"))]
         for profile in profiles:
             save_profile(s, profile)
@@ -162,7 +165,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tender_radar", description="Tender Radar command line")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("seed", help="load synthetic demo data").set_defaults(handler=_cmd_seed)
+    seed = sub.add_parser("seed", help="load synthetic demo data")
+    seed.add_argument("--rolling", action="store_true", help="shift demo dates so they stay current")
+    seed.add_argument("--today", type=date.fromisoformat, default=date.today(), help="YYYY-MM-DD (with --rolling)")
+    seed.set_defaults(handler=_cmd_seed)
 
     match = sub.add_parser("match", help="score tenders against the company profile")
     match.add_argument("--today", type=date.fromisoformat, default=date.today(), help="YYYY-MM-DD")

@@ -123,3 +123,21 @@ def test_import_missing_file_fails_cleanly(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("TR_DATABASE_URL", f"sqlite:///{(tmp_path / 'cli.db').as_posix()}")
     assert main(["import", str(tmp_path / "nope.txt")]) == 1
     assert "not found" in capsys.readouterr().out
+
+
+def test_rolling_seed_keeps_the_demo_fresh_and_rescores(tmp_path, monkeypatch, capsys):
+    from tender_radar.repository import get_tender
+
+    url = f"sqlite:///{(tmp_path / 'cli.db').as_posix()}"
+    monkeypatch.setenv("TR_DATABASE_URL", url)
+    assert main(["seed", "--rolling", "--today", "2026-11-15"]) == 0
+    assert main(["match", "--today", "2026-11-15"]) == 0
+    assert main(["seed", "--rolling", "--today", "2027-03-01"]) == 0  # 106 days later
+    assert "30 updated" in capsys.readouterr().out
+    with session_scope(make_engine(url)) as s:
+        assert str(get_tender(s, "261139001001").deadline) == "2027-03-26"
+        assert list_matches(s, "najd-digital") == []  # changed tenders get re-scored
+    assert main(["match", "--today", "2027-03-01"]) == 0
+    with session_scope(make_engine(url)) as s:
+        live = [m for m in list_matches(s, "najd-digital") if m.status != "filtered_out"]
+        assert 8 <= len(live) <= 14  # same split as on the anchor day

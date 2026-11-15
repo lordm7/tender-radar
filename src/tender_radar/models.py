@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -116,6 +116,21 @@ def load_seed_tenders(path: Path) -> list[Tender]:
     """Load tenders from a JSON file shaped like {"_note": ..., "tenders": [...]}."""
     data = _read_json(path)
     return [Tender.model_validate(item) for item in data["tenders"]]
+
+
+# The day the synthetic seed dates were written for. `seed --rolling` moves every
+# date forward by (today - SEED_ANCHOR), so the public demo never looks stale.
+SEED_ANCHOR = date(2026, 11, 15)
+_DATE_FIELDS = ("published_on", "inquiry_deadline", "deadline")
+
+
+def shift_dates(tenders: list[Tender], anchor: date, today: date) -> list[Tender]:
+    """Copies of the tenders with every date moved by the days between anchor and today."""
+    delta = timedelta(days=(today - anchor).days)
+    return [
+        t.model_copy(update={f: getattr(t, f) + delta for f in _DATE_FIELDS if getattr(t, f) is not None})
+        for t in tenders
+    ]
 
 
 def load_profile(path: Path) -> CompanyProfile:

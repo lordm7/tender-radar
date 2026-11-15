@@ -53,3 +53,26 @@ def test_seed_uses_etimad_style_references():
     assert all(t.reference.isdigit() and len(t.reference) == 12 for t in tenders)
     assert sum(t.booklet_price_sar == 0 for t in tenders) >= 15
     assert all(t.inquiry_deadline is None or t.inquiry_deadline <= t.deadline for t in tenders)
+
+
+def test_shift_dates_moves_every_date_by_the_same_days():
+    from datetime import date
+
+    from tender_radar.models import SEED_ANCHOR, shift_dates
+
+    tenders = load_seed_tenders(SEED / "tenders.json")
+    shifted = shift_dates(tenders, anchor=SEED_ANCHOR, today=date(2026, 12, 25))  # 40 days later
+    first, moved = tenders[0], shifted[0]
+    assert moved.deadline == date(2027, 1, 19)  # 2026-12-10 + 40
+    assert moved.published_on == date(2026, 12, 12)
+    assert moved.inquiry_deadline == date(2027, 1, 9)
+    assert first.deadline == date(2026, 12, 10)  # originals untouched
+    no_deadline = next(t for t in shifted if t.reference == "261139001006")
+    assert no_deadline.deadline is None
+
+
+def test_shift_dates_on_the_anchor_day_changes_nothing():
+    from tender_radar.models import SEED_ANCHOR, shift_dates
+
+    tenders = load_seed_tenders(SEED / "tenders.json")
+    assert shift_dates(tenders, anchor=SEED_ANCHOR, today=SEED_ANCHOR) == tenders
