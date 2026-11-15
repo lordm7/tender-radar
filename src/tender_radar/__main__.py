@@ -6,6 +6,7 @@ Commands:
   brief   summarise a tender booklet PDF into a bid brief
   export  write the read-only static demo site (for GitHub Pages)
   digest  email today's best matches to yourself (or save a preview without SMTP)
+  daily   the whole daily pipeline: fresh demo dates, match, sample brief, export, digest
   import  read tenders from Etimad list text/HTML that a person copied or saved (kept private)
 """
 
@@ -194,6 +195,33 @@ def _cmd_digest(args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def _cmd_daily(args: argparse.Namespace, settings: Settings) -> int:
+    """Run every daily step. AI or email problems are reported but never stop the
+    export: the public demo must always be rebuilt (tenders show "not scored")."""
+    today = args.today.isoformat()
+    steps = [
+        ("seed", ["seed", "--rolling", "--today", today], True),
+        ("match", ["match", "--today", today], False),
+        ("brief", ["brief", str(SEED_DIR / "sample_booklet.pdf")], False),
+        ("export", ["export", "--out", args.out, "--today", today], True),
+    ]
+    if settings.smtp_configured:
+        steps.append(("digest", ["digest", "--today", today], False))
+    for name, argv, required in steps:
+        print(f"== {name}")
+        try:
+            code = main(argv)
+        except Exception as exc:  # e.g. the AI is selected but has no key
+            print(f"{exc.__class__.__name__}: {exc}")
+            code = 1
+        if code != 0:
+            if required:
+                print(f"{name} step failed; stopping")
+                return 1
+            print(f"{name} step failed (continuing; the demo is still published)")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tender_radar", description="Tender Radar command line")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -225,6 +253,11 @@ def build_parser() -> argparse.ArgumentParser:
     digest.add_argument("--out", default="digests", help="folder for previews (default: digests)")
     digest.add_argument("--today", type=date.fromisoformat, default=date.today(), help="YYYY-MM-DD")
     digest.set_defaults(handler=_cmd_digest)
+
+    daily = sub.add_parser("daily", help="run the whole daily pipeline (used by GitHub Actions)")
+    daily.add_argument("--out", default="site", help="output folder for the demo (default: site)")
+    daily.add_argument("--today", type=date.fromisoformat, default=date.today(), help="YYYY-MM-DD")
+    daily.set_defaults(handler=_cmd_daily)
 
     imp = sub.add_parser("import", help="import Etimad list text/HTML you copied or saved (private)")
     imp.add_argument("paths", nargs="+", help=".txt (copied text) or .html (saved page) files")
