@@ -78,10 +78,32 @@ def test_rate_limit_retries_then_succeeds(seeded, profile):
 
 def test_rate_limit_exhausted_unscored_and_retried_next_run(seeded, profile):
     stats = run(seeded, profile, FakeProvider([RateLimited("429")] * 3), max_retries=2)
-    assert stats.unscored == 1
+    assert stats.unscored == PASSING  # quota gone: the rest of the run is skipped, not hammered
     fake = FakeProvider([VALID])
     second = run(seeded, profile, fake)
-    assert len(fake.calls) == 1
-    assert second.scored == 1
+    assert len(fake.calls) == PASSING
+    assert second.scored == PASSING
     with session_scope(seeded) as s:
         assert get_match(s, FIRST_PASSING, profile.id).score == 88
+
+
+def test_cached_score_is_filtered_once_deadline_passes(engine, profile):
+    from tender_radar.models import Tender
+
+    t = Tender(reference="R1", title="تطوير برمجيات", agency="جهة", tender_type="عامة", activity="تقنية المعلومات",
+               region="الرياض", deadline=date(2026, 11, 20), estimated_value_sar=1_000_000)
+    with session_scope(engine) as s:
+        upsert_tenders(s, [t])
+        assert run_matching(s, profile, FakeProvider(), date(2026, 11, 15), sleep=no_sleep).scored == 1
+    with session_scope(engine) as s:
+        later = run_matching(s, profile, FakeProvider(), date(2026, 12, 1), sleep=no_sleep)
+        m = get_match(s, "R1", profile.id)
+    assert later.filtered_out == 1
+    assert (m.status, m.reasons_en) == ("filtered_out", ["deadline passed"])
+
+
+def test_quota_exhausted_stops_calling_ai_for_rest_of_run(seeded, profile):
+    fake = FakeProvider([RateLimited("429")] * 50)
+    stats = run(seeded, profile, fake, max_retries=2)
+    assert len(fake.calls) == 3
+    assert stats.unscored == PASSING

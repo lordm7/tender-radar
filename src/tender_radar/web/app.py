@@ -102,7 +102,8 @@ def _rows(session: Session, profile: CompanyProfile, today: date) -> tuple[list[
     for t in list_tenders(session):
         m = matches.get(t.reference)
         row = Row(t, m, (t.deadline - today).days if t.deadline else None)
-        (filtered if m is not None and m.status == "filtered_out" else results).append(row)
+        expired = row.days_left is not None and row.days_left < 0  # closed since the last matching run
+        (filtered if expired or (m is not None and m.status == "filtered_out") else results).append(row)
     results.sort(key=lambda r: (r.match is None or r.match.status != "scored", -(r.match.score or 0) if r.match else 0))
     return results, filtered
 
@@ -303,7 +304,13 @@ def create_app(
                         exc, ValidationError) else "Values must be numbers"
                     return HTMLResponse(render_profile_form(current, form, message), status_code=422)
                 save_profile(s, updated)
-                run_matching(s, updated, get_ai(), current_day())
+            # Saved first, so a missing AI setup never throws away the user's edits.
+            try:
+                ai = get_ai()
+            except ValueError as exc:
+                return HTMLResponse(render_profile_form(updated, form, f"Profile saved, but AI scoring is not configured: {exc}"))
+            with session_scope(engine) as s:
+                run_matching(s, updated, ai, current_day())
             return RedirectResponse("/", status_code=303)
 
     app.state.engine = engine

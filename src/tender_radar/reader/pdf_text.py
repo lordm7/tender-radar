@@ -32,7 +32,12 @@ def extract_pages(path: Path) -> list[str]:
     except Exception as exc:
         raise UnreadablePDF("This file could not be opened as a PDF.") from exc
     with doc:
-        pages = [clean_text(page.get_text()) for page in doc]
+        if doc.needs_pass:
+            raise UnreadablePDF("This PDF is password-protected. Please upload an unlocked copy.")
+        try:
+            pages = [clean_text(page.get_text()) for page in doc]
+        except Exception as exc:  # damaged pages that still opened
+            raise UnreadablePDF("This PDF is damaged and its text could not be read.") from exc
     if sum(len(p.strip()) for p in pages) < MIN_TEXT_CHARS:
         raise UnreadablePDF("This PDF looks scanned (no text layer). OCR is not supported yet.")
     return pages

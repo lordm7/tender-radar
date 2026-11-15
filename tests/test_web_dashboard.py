@@ -58,3 +58,9 @@ def test_read_only_hides_profile_link(db_settings):
     engine.dispose()
     assert 'href="/profile"' in live
     assert "/profile" not in static
+
+
+def test_dashboard_moves_expired_tenders_to_filtered(db_settings):
+    # Matching ran on 2026-11-15; viewing on 2026-12-03 means TR-2026-1002 (deadline 2026-12-01) has closed.
+    html = TestClient(create_app(db_settings, today=date(2026, 12, 3))).get("/").text
+    assert "TR-2026-1002" not in result_refs(html)

@@ -63,3 +63,14 @@ def test_profile_rejects_min_greater_than_max(db_settings, profile):
 def test_profile_route_absent_in_read_only(db_settings):
     client = TestClient(create_app(db_settings, today=TODAY, read_only=True))
     assert client.get("/profile").status_code == 404
+
+
+def test_profile_save_keeps_edits_when_ai_not_configured(db_settings, profile):
+    from tender_radar.settings import Settings
+
+    broken = Settings(database_url=db_settings.database_url, ai_provider="gemini", gemini_api_key=None, gemini_model=None)
+    client = TestClient(create_app(broken, today=TODAY))
+    response = client.post("/profile", data=form_from(profile, keywords="\n".join(profile.keywords + ["شبكات"])))
+    assert response.status_code == 200
+    assert "Profile saved, but AI scoring is not configured" in response.text
+    assert "شبكات" in current_profile(db_settings).keywords

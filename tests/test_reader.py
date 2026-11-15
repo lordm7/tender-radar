@@ -79,3 +79,12 @@ def test_brief_uses_provider_schema(profile):
     brief = build_brief([TEXT], profile, FakeProvider([BRIEF]))
     assert brief.scope == "تطوير منصة رقمية"
     assert brief.go_no_go[0].status == "meets"
+
+
+def test_encrypted_pdf_raises_unreadable(tmp_path):
+    path = tmp_path / "locked.pdf"
+    doc = pymupdf.open()
+    doc.new_page().insert_textbox(pymupdf.Rect(40, 40, 555, 800), TEXT)
+    doc.save(path, encryption=pymupdf.PDF_ENCRYPT_AES_256, user_pw="secret", owner_pw="owner")
+    with pytest.raises(UnreadablePDF, match="password"):
+        extract_pages(path)

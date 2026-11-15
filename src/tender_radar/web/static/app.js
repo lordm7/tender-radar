@@ -17,7 +17,7 @@
       const ok =
         Number(card.dataset.score) >= minScore &&
         (agency.value === "" || card.dataset.agency === agency.value) &&
-        (maxDays === null || (left !== "" && Number(left) <= maxDays));
+        (maxDays === null || (left !== "" && Number(left) >= 0 && Number(left) <= maxDays));
       card.style.display = ok ? "" : "none";
       if (ok) shown++;
     }

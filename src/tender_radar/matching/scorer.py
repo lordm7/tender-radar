@@ -27,6 +27,8 @@ from tender_radar.models import AIScore, CompanyProfile, MatchResult, Tender
 from tender_radar.repository import get_match, get_match_hash, get_tender_hash, list_tenders, save_match
 
 UNSCORED_REASON = "AI unavailable – will retry next run"
+# Free-tier quotas are counted per minute, so wait long enough for the window to move (15s, then 30s).
+RETRY_WAIT_SECONDS = 15
 
 
 @dataclass
@@ -46,13 +48,18 @@ def build_score_prompt(tender: Tender, profile: CompanyProfile) -> str:
 
 
 def _ask_ai(provider: LLMProvider, prompt: str, max_retries: int, sleep: Callable[[float], None]) -> AIScore | None:
-    """Return the AI score, or None if the AI could not give a usable answer."""
+    """Return the AI score, or None if the answer was unusable.
+
+    Raises RateLimited when the provider is still rate-limited after all retries,
+    so the caller can stop spending calls for the rest of the run.
+    """
     for attempt in range(max_retries + 1):
         try:
             return provider.generate_json(prompt, AIScore)
         except RateLimited:
-            if attempt < max_retries:
-                sleep(2**attempt)
+            if attempt == max_retries:
+                raise
+            sleep(RETRY_WAIT_SECONDS * (2**attempt))
         except (AIError, ValidationError):
             return None
     return None
@@ -69,26 +76,34 @@ def run_matching(
     """Score every stored tender against the profile; see the module docstring."""
     stats = RunStats()
     version = profile.version
+    quota_exhausted = False  # after the AI keeps saying "too many requests", stop asking this run
     for tender in list_tenders(session):
         content_hash = get_tender_hash(session, tender.reference)
         existing = get_match(session, tender.reference, profile.id)
-        if (
+        # The rules are free, so they always run: a deadline can pass while the cached score stays valid.
+        rules = prefilter(tender, profile, today)
+        cache_valid = (
             existing is not None
             and existing.status != "unscored"
             and existing.profile_version == version
             and get_match_hash(session, tender.reference, profile.id) == content_hash
-        ):
+        )
+        if cache_valid and (rules.passed or existing.status == "filtered_out"):
             stats.cached += 1
             continue
 
         base = dict(tender_reference=tender.reference, profile_id=profile.id, profile_version=version)
-        rules = prefilter(tender, profile, today)
         if not rules.passed:
             save_match(session, MatchResult(**base, status="filtered_out", reasons_en=rules.reasons), content_hash)
             stats.filtered_out += 1
             continue
 
-        ai = _ask_ai(provider, build_score_prompt(tender, profile), max_retries, sleep)
+        ai = None
+        if not quota_exhausted:
+            try:
+                ai = _ask_ai(provider, build_score_prompt(tender, profile), max_retries, sleep)
+            except RateLimited:
+                quota_exhausted = True
         if ai is None:
             save_match(session, MatchResult(**base, status="unscored", reasons_en=[UNSCORED_REASON]), content_hash)
             stats.unscored += 1
