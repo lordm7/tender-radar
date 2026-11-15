@@ -114,6 +114,11 @@ def _common(session: Session, profile: CompanyProfile, today: date, links: Links
         "links": links,
         "deadline_label": lambda d: deadline_label(d, today),
         "has_sample_brief": latest_brief(session, SAMPLE_BOOKLET) is not None,
+        "footer": (
+            f"Synthetic demo data · scores precomputed on {today.isoformat()} · built with Python + AI"
+            if links.read_only
+            else None
+        ),
     }
 
 

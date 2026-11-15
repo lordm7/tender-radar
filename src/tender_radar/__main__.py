@@ -4,6 +4,7 @@ Commands:
   seed    create the database and load the synthetic tenders and demo profile
   match   run the rule filter + AI scoring for the stored profile
   brief   summarise a tender booklet PDF into a bid brief
+  export  write the read-only static demo site (for GitHub Pages)
 """
 
 from __future__ import annotations
@@ -74,6 +75,22 @@ def _cmd_brief(args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def _cmd_export(args: argparse.Namespace, settings: Settings) -> int:
+    from tender_radar.export.static_site import export_site
+
+    engine = make_engine(settings.database_url)
+    init_db(engine)
+    with session_scope(engine) as s:
+        profile = first_profile(s)
+        if profile is None:
+            print("No company profile yet. Run: python -m tender_radar seed")
+            return 1
+        written = export_site(s, profile, args.today, Path(args.out))
+    engine.dispose()
+    print(f"Wrote {len(written)} files to {args.out}/ (open {args.out}/index.html)")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tender_radar", description="Tender Radar command line")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -87,6 +104,11 @@ def build_parser() -> argparse.ArgumentParser:
     brief = sub.add_parser("brief", help="summarise a tender booklet PDF with AI")
     brief.add_argument("path", help="path to the booklet PDF")
     brief.set_defaults(handler=_cmd_brief)
+
+    export = sub.add_parser("export", help="write the read-only static demo site")
+    export.add_argument("--out", default="site", help="output folder (default: site)")
+    export.add_argument("--today", type=date.fromisoformat, default=date.today(), help="YYYY-MM-DD")
+    export.set_defaults(handler=_cmd_export)
     return parser
 
 

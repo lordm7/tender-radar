@@ -39,3 +39,13 @@ def test_brief_command_unreadable_pdf_returns_1(tmp_path, monkeypatch, capsys):
     assert main(["seed"]) == 0
     assert main(["brief", str(bad)]) == 1
     assert "could not be opened" in capsys.readouterr().out
+
+
+def test_export_command_writes_site(tmp_path, monkeypatch):
+    monkeypatch.setenv("TR_DATABASE_URL", f"sqlite:///{(tmp_path / 'cli.db').as_posix()}")
+    monkeypatch.setenv("TR_AI_PROVIDER", "fake")
+    out = tmp_path / "site"
+    assert main(["seed"]) == 0
+    assert main(["match", "--today", "2026-11-15"]) == 0
+    assert main(["export", "--out", str(out), "--today", "2026-11-15"]) == 0
+    assert (out / "index.html").exists()
