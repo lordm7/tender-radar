@@ -46,7 +46,7 @@ def test_digest_respects_top_n(db_settings):
 
 def test_digest_skips_closed_tenders(db_settings):
     later = digest_for(db_settings, today=date(2026, 12, 3))  # 1002 (75) closed on 12-01
-    assert "261139001002" not in later.text
+    assert "000000001002" not in later.text
 
 
 def test_empty_digest(db_settings):

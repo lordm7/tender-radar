@@ -16,7 +16,7 @@ Built for Saudi B2B companies: thousands of tenders appear on [Etimad](https://t
 | **Several companies** | The same tenders are matched against each company's profile. The demo has an IT services firm and a contracting & maintenance firm. |
 | **Read a booklet** | Upload a tender booklet PDF (كراسة الشروط) and get the scope, deliverables, key dates, eligibility, required documents, evaluation criteria and risks. You also get a go/no-go checklist against the company's certifications. |
 | **Daily, hands-free** | A GitHub Actions job runs every morning: fresh demo dates → matching → booklet brief → static demo → email digest. |
-| **Import real tenders (private)** | Copy or save the public Etimad list in your browser; `import` turns it into tenders. Imported data never leaves your machine's database. |
+| **Import real tenders (private)** | Copy or save the public Etimad list in your browser; `import` turns it into tenders. Imported tenders are never published: they stay in your local database, go to your AI provider only for scoring, and reach only your own inbox. |
 
 | Company chooser | Tender detail | Booklet brief |
 |---|---|---|
@@ -119,7 +119,7 @@ So the defensible claim is *"the pipeline matched human bid decisions on 19/20 s
   - The developer API offers no tender list.
 - **What this project does instead:**
   - **The public demo is synthetic.** The export refuses to include anything but seed data, and tests enforce that.
-  - **Real tenders come only from a person.** They copy or save the public list in a normal browser, then run `import`. They stay in the local database and the owner's own email digest. Imported files live in the git-ignored `data/imports/`.
+  - **Real tenders come only from a person.** They copy or save the public list in a normal browser, then run `import`. They are never published: they stay in the local database, their title, agency and activity are sent to the AI provider for scoring, and they appear only in the owner's own email digest. Imported files live in the git-ignored `data/imports/`.
   - **A written permission request** to NCGR, the operator of Etimad, has been drafted ([docs/etimad-permission-request.md](docs/etimad-permission-request.md)). Automatic collection or public use of real data waits for that answer, or for an official open-data source.
 - **Booklets:** the sample booklet is synthetic. Don't upload confidential company documents while using the free AI tier: Google may use free-tier inputs to improve its models.
 

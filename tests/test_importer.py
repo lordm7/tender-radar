@@ -68,3 +68,54 @@ def test_saved_html_gives_the_same_result():
     html = "<html><head><style>.x{}</style><script>var a = 'تاريخ النشر :2020-01-01';</script></head><body>"
     html += "".join(f"<div><span>{escape(line)}</span></div>\n" for line in lines) + "</body></html>"
     assert parse_etimad_text(html_to_text(html)) == parsed()
+
+
+CARD = """تاريخ النشر :2026-11-15
+منافسة عامة
+عنوان منافسة تجريبية
+جهة تجريبية
+التفاصيل
+النشاط الأساسي
+تقنية المعلومات
+الرقم المرجعي
+999000000009
+آخر موعد لإستلام الإستفسارات
+2026-11-20
+آخر موعد لتقديم العروض
+2026-11-27 10:00
+"""
+
+
+def test_values_on_the_line_after_their_label():
+    t = parse_etimad_text(CARD).tenders[0]
+    assert t.reference == "999000000009"
+    assert t.activity == "تقنية المعلومات"
+    assert t.inquiry_deadline == date(2026, 11, 20)
+    assert (t.deadline, t.deadline_time) == (date(2026, 11, 27), "10:00")
+
+
+def test_saved_html_with_inline_label_and_value():
+    """Saved pages may put a label and its value in neighbouring <span>s."""
+
+    def to_div(line: str) -> str:
+        label = "الرقم المرجعي"
+        if line.startswith(label):
+            return f"<div><span>{label}</span><span>{escape(line[len(label):].strip())}</span></div>"
+        return f"<div>{escape(line)}</div>"
+
+    html = "".join(to_div(line) for line in FIXTURE.read_text(encoding="utf-8").splitlines())
+    refs = [t.reference for t in parse_etimad_text(html_to_text(html)).tenders]
+    assert refs == ["999000000001", "999000000002", "999000000003"]
+
+
+def test_hijri_or_odd_dates_are_not_mistaken_for_gregorian():
+    hijri = CARD.replace("2026-11-27 10:00", "1448-05-24")
+    result = parse_etimad_text(hijri)
+    assert result.tenders == []
+    assert "not a Gregorian date" in result.skipped[0]
+
+
+def test_card_without_a_readable_deadline_gets_a_warning():
+    result = parse_etimad_text(CARD.replace("2026-11-27 10:00", "27/11/2026"))
+    assert result.tenders[0].deadline is None
+    assert any("no deadline" in w for w in result.warnings)

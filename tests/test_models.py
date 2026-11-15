@@ -38,9 +38,9 @@ def test_tender_round_trips_etimad_fields():
     from tender_radar.models import Tender
 
     t = Tender(
-        reference="261139001234", title="x", agency="y", tender_type="منافسة عامة", activity="z",
+        reference="000000001234", title="x", agency="y", tender_type="منافسة عامة", activity="z",
         inquiry_deadline=date(2026, 11, 20), deadline_time="10:00", booklet_price_sar=0,
-        source_url="https://example.invalid/t/261139001234",
+        source_url="https://example.invalid/t/000000001234",
     )
     again = Tender.model_validate_json(t.model_dump_json())
     assert again == t
@@ -67,7 +67,7 @@ def test_shift_dates_moves_every_date_by_the_same_days():
     assert moved.published_on == date(2026, 12, 12)
     assert moved.inquiry_deadline == date(2027, 1, 9)
     assert first.deadline == date(2026, 12, 10)  # originals untouched
-    no_deadline = next(t for t in shifted if t.reference == "261139001006")
+    no_deadline = next(t for t in shifted if t.reference == "000000001006")
     assert no_deadline.deadline is None
 
 

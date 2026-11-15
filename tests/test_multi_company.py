@@ -40,9 +40,9 @@ def passed(settings, profile_id):
 
 def test_each_company_gets_its_own_matches(two_companies):
     it, build = passed(two_companies, IT), passed(two_companies, BUILD)
-    assert "261139002001" in build and "261139002001" not in it  # office building construction
-    assert "261139001004" in it and "261139001004" not in build  # AI platform
-    assert "261139002006" not in build  # roads in Makkah: region not covered
+    assert "000000002001" in build and "000000002001" not in it  # office building construction
+    assert "000000001004" in it and "000000001004" not in build  # AI platform
+    assert "000000002006" not in build  # roads in Makkah: region not covered
 
 
 def test_home_lists_companies_when_several(two_companies):
@@ -64,16 +64,16 @@ def test_unknown_company_404(db_settings):
 
 def test_company_dashboard_links_stay_inside_the_company(two_companies):
     html = TestClient(create_app(two_companies, today=TODAY)).get(f"/c/{BUILD}/").text
-    assert f'href="/c/{BUILD}/tenders/261139002001"' in html
+    assert f'href="/c/{BUILD}/tenders/000000002001"' in html
     assert f'href="/c/{BUILD}/profile"' in html
 
 
 def test_read_only_server_uses_real_routes_not_html_files(two_companies):
     client = TestClient(create_app(two_companies, today=TODAY, read_only=True))
     html = client.get(f"/c/{IT}/").text
-    assert f'href="/c/{IT}/tenders/261139001004"' in html
+    assert f'href="/c/{IT}/tenders/000000001004"' in html
     assert ".html" not in html
-    assert "<form" not in client.get(f"/c/{IT}/tenders/261139001004").text
+    assert "<form" not in client.get(f"/c/{IT}/tenders/000000001004").text
 
 
 def test_reader_lets_you_pick_the_company(two_companies):
@@ -95,11 +95,11 @@ def test_export_has_a_chooser_and_one_folder_per_company(two_companies, tmp_path
     chooser = (out / "index.html").read_text(encoding="utf-8")
     assert f'href="c/{IT}/index.html"' in chooser and f'href="c/{BUILD}/index.html"' in chooser
     build = (out / "c" / BUILD / "index.html").read_text(encoding="utf-8")
-    assert 'href="tenders/261139002001.html"' not in build  # links are relative to the site root…
-    assert 'href="../../c/al-bunyan/tenders/261139002001.html"' in build  # …via ../../
-    assert (out / "c" / BUILD / "tenders" / "261139002001.html").exists()
+    assert 'href="tenders/000000002001.html"' not in build  # links are relative to the site root…
+    assert 'href="../../c/al-bunyan/tenders/000000002001.html"' in build  # …via ../../
+    assert (out / "c" / BUILD / "tenders" / "000000002001.html").exists()
     assert 'src="../../static/app.js"' in build
-    detail = (out / "c" / BUILD / "tenders" / "261139002001.html").read_text(encoding="utf-8")
+    detail = (out / "c" / BUILD / "tenders" / "000000002001.html").read_text(encoding="utf-8")
     assert 'href="../../../c/al-bunyan/index.html"' in detail
 
 
@@ -122,6 +122,6 @@ def test_export_refuses_to_clear_a_folder_it_did_not_create(two_companies, tmp_p
 
 
 def test_slug_avoids_collisions():
-    assert tender_slug("261139001004") == "261139001004"
+    assert tender_slug("000000001004") == "000000001004"
     assert tender_slug("A/1") != tender_slug("A-1")
     assert tender_slug("A/1") != tender_slug("A?1")

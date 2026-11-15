@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -32,6 +33,7 @@ from tender_radar.settings import Settings
 
 ROOT = Path(__file__).resolve().parents[2]
 SEED_DIR = ROOT / "data" / "seed"
+SAMPLE_BOOKLET_PROFILE = "najd-digital"  # the sample booklet is an IT tender; judge it as the IT firm
 
 
 def _cmd_seed(args: argparse.Namespace, settings: Settings) -> int:
@@ -139,8 +141,11 @@ def _cmd_import(args: argparse.Namespace, settings: Settings) -> int:
         print(f"{path.name}: {stats.inserted} new, {stats.updated} updated, {stats.unchanged} unchanged, {len(result.skipped)} skipped")
         for reason in result.skipped:
             print(f"  skipped {reason}")
+        for warning in result.warnings:
+            print(f"  warning {warning}")
     engine.dispose()
-    print("Imported tenders are private: they never appear in the exported demo. Next: python -m tender_radar match")
+    print("Imported tenders are never published in the exported demo. Note: `match` sends their title, agency")
+    print("and activity to your AI provider for scoring, and `digest` emails them to you. Next: python -m tender_radar match")
     return 0
 
 
@@ -202,7 +207,7 @@ def _cmd_daily(args: argparse.Namespace, settings: Settings) -> int:
     steps = [
         ("seed", ["seed", "--rolling", "--today", today], True),
         ("match", ["match", "--today", today], False),
-        ("brief", ["brief", str(SEED_DIR / "sample_booklet.pdf")], False),
+        ("brief", ["brief", str(SEED_DIR / "sample_booklet.pdf"), "--profile", SAMPLE_BOOKLET_PROFILE], False),
         ("export", ["export", "--out", args.out, "--today", today], True),
     ]
     if settings.smtp_configured:
@@ -218,8 +223,25 @@ def _cmd_daily(args: argparse.Namespace, settings: Settings) -> int:
             if required:
                 print(f"{name} step failed; stopping")
                 return 1
-            print(f"{name} step failed (continuing; the demo is still published)")
+            print(f"{name} step failed (continuing; the demo is still built)")
+    _report_status(settings)
     return 0
+
+
+def _report_status(settings: Settings) -> None:
+    """Tell GitHub Actions how many tenders got a real score, so the deploy step can
+    keep yesterday's demo online instead of publishing an all-"not scored" one."""
+    from tender_radar.repository import list_matches
+
+    engine = make_engine(settings.database_url)
+    with session_scope(engine) as s:
+        scored = sum(m.status == "scored" for p in list_profiles(s) for m in list_matches(s, p.id))
+    engine.dispose()
+    print(f"scored_total={scored}")
+    output = os.environ.get("GITHUB_OUTPUT")
+    if output:
+        with open(output, "a", encoding="utf-8") as f:
+            f.write(f"scored_total={scored}\n")
 
 
 def build_parser() -> argparse.ArgumentParser:

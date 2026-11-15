@@ -135,7 +135,7 @@ def test_rolling_seed_keeps_the_demo_fresh_and_rescores(tmp_path, monkeypatch, c
     assert main(["seed", "--rolling", "--today", "2027-03-01"]) == 0  # 106 days later
     assert "30 updated" in capsys.readouterr().out
     with session_scope(make_engine(url)) as s:
-        assert str(get_tender(s, "261139001001").deadline) == "2027-03-26"
+        assert str(get_tender(s, "000000001001").deadline) == "2027-03-26"
         assert list_matches(s, "najd-digital") == []  # changed tenders get re-scored
     assert main(["match", "--today", "2027-03-01"]) == 0
     with session_scope(make_engine(url)) as s:

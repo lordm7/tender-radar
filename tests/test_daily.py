@@ -60,3 +60,34 @@ def test_daily_fails_if_the_export_cannot_be_written(tmp_path, monkeypatch):
     foreign.mkdir()
     (foreign / "keep.txt").write_text("x", encoding="utf-8")
     assert main(["daily", "--out", str(foreign), "--today", "2026-11-20"]) == 1
+
+
+def test_daily_checks_the_it_sample_booklet_against_the_it_company(tmp_path, monkeypatch):
+    from tender_radar.ai.provider import FakeProvider
+
+    use_db(tmp_path, monkeypatch)
+    fake = FakeProvider()
+    monkeypatch.setattr(cli, "get_provider", lambda settings: fake)
+    assert main(["daily", "--out", str(tmp_path / "site"), "--today", "2026-11-20"]) == 0
+    brief_prompt = fake.calls[-1]
+    assert "Najd Digital Solutions" in brief_prompt
+    assert "Al-Bunyan" not in brief_prompt
+
+
+def test_daily_reports_its_status_for_the_deploy_gate(tmp_path, monkeypatch):
+    use_db(tmp_path, monkeypatch)
+    status = tmp_path / "gh_output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(status))
+    assert main(["daily", "--out", str(tmp_path / "site"), "--today", "2026-11-20"]) == 0
+    lines = status.read_text(encoding="utf-8").splitlines()
+    scored = int(next(l for l in lines if l.startswith("scored_total=")).split("=")[1])
+    assert scored > 0
+
+
+def test_daily_status_shows_zero_when_the_ai_is_down(tmp_path, monkeypatch):
+    use_db(tmp_path, monkeypatch)
+    status = tmp_path / "gh_output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(status))
+    monkeypatch.setattr(cli, "get_provider", lambda settings: AIDown())
+    assert main(["daily", "--out", str(tmp_path / "site"), "--today", "2026-11-20"]) == 0
+    assert "scored_total=0" in status.read_text(encoding="utf-8").splitlines()

@@ -2,110 +2,110 @@
   "_note": "Fill each 'fit' with true or false: would Najd Digital Solutions want to bid on it? Your own judgement - this is the answer key the AI is measured against.",
   "labels": [
     {
-      "reference": "261139001001",
+      "reference": "000000001001",
       "title": "تطوير منصة رقمية لخدمات المستفيدين",
       "fit": true
     },
     {
-      "reference": "261139001002",
+      "reference": "000000001002",
       "title": "خدمات الأمن السيبراني ومراقبة مركز العمليات الأمنية",
       "fit": true
     },
     {
-      "reference": "261139001003",
+      "reference": "000000001003",
       "title": "ترحيل الأنظمة إلى الحوسبة السحابية",
       "fit": true
     },
     {
-      "reference": "261139001004",
+      "reference": "000000001004",
       "title": "حل ذكاء اصطناعي لتحليل بلاغات المواطنين وتصنيفها",
       "fit": true
     },
     {
-      "reference": "261139001005",
+      "reference": "000000001005",
       "title": "دعم فني وصيانة أجهزة الحاسب والطابعات",
       "fit": false
     },
     {
-      "reference": "261139001006",
+      "reference": "000000001006",
       "title": "تطوير تطبيق جوال لحجز المواعيد",
       "fit": true
     },
     {
-      "reference": "261139001007",
+      "reference": "000000001007",
       "title": "مشروع ٢٠٢٦ لتحديث البنية التحتية لتقنية المعلومات",
       "fit": true
     },
     {
-      "reference": "261139001008",
+      "reference": "000000001008",
       "title": "توريد وتركيب نظام تخطيط موارد المؤسسة",
       "fit": false,
       "relabel_reason": "region not covered (Qassim)"
     },
     {
-      "reference": "261139001009",
+      "reference": "000000001009",
       "title": "خدمات الامن السيبرانى لانظمة الشبكات",
       "fit": true
     },
     {
-      "reference": "261139001010",
+      "reference": "000000001010",
       "title": "تطوير بوابة إلكترونية للخدمات البلدية",
       "fit": false,
       "relabel_reason": "deadline passed"
     },
     {
-      "reference": "261139001011",
+      "reference": "000000001011",
       "title": "خدمات استضافة سحابية للتطبيقات",
       "fit": false,
       "relabel_reason": "deadline passed"
     },
     {
-      "reference": "261139001012",
+      "reference": "000000001012",
       "title": "منصة وطنية لتحليل البيانات وذكاء الأعمال",
       "fit": false,
       "relabel_reason": "value 45M above 20M limit"
     },
     {
-      "reference": "261139001013",
+      "reference": "000000001013",
       "title": "برمجيات إدارة الموارد البشرية",
       "fit": false,
       "relabel_reason": "excluded agency"
     },
     {
-      "reference": "261139001014",
+      "reference": "000000001014",
       "title": "تطوير نظام إلكتروني لإدارة العقود",
       "fit": true
     },
     {
-      "reference": "261139002001",
+      "reference": "000000002001",
       "title": "إنشاء مبنى إداري من ثلاثة طوابق",
       "fit": false
     },
     {
-      "reference": "261139002002",
+      "reference": "000000002002",
       "title": "أعمال النظافة العامة للمرافق",
       "fit": false
     },
     {
-      "reference": "261139002003",
+      "reference": "000000002003",
       "title": "تشغيل وصيانة محطات ضخ المياه",
       "fit": false
     },
     {
-      "reference": "261139002004",
+      "reference": "000000002004",
       "title": "توريد وجبات غذائية للطلاب",
       "fit": false
     },
     {
-      "reference": "261139002005",
+      "reference": "000000002005",
       "title": "توريد مستلزمات طبية استهلاكية",
       "fit": false
     },
     {
-      "reference": "261139002006",
+      "reference": "000000002006",
       "title": "رصف وإنارة الطرق الداخلية",
       "fit": false
     }
   ],
-  "_relabel_note": "2026-11-15: first pass judged topic only ('is this IT?') and scored 14/20 = 70%. The labeller confirmed that, then re-labelled 5 tenders with the full question ('can THIS company bid?'). 261139001005 was kept as the labeller's own judgement."
+  "_relabel_note": "2026-11-15: first pass judged topic only ('is this IT?') and scored 14/20 = 70%. The labeller confirmed that, then re-labelled 5 tenders with the full question ('can THIS company bid?'). 000000001005 was kept as the labeller's own judgement."
 }

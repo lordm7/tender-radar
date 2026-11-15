@@ -35,12 +35,14 @@ _LABEL_INQUIRY = normalize("آخر موعد لإستلام الإستفسارا�
 _LABEL_DEADLINE = normalize("آخر موعد لتقديم العروض")
 _LABEL_PRICE = normalize("قيمة وثائق المنافسة")
 _FREE = normalize("مجانا")
+_ALL_LABELS = (_LABEL_DETAILS, _LABEL_ACTIVITY, _LABEL_REFERENCE, _LABEL_INQUIRY, _LABEL_DEADLINE, _LABEL_PRICE)
 
 
 @dataclass
 class ImportResult:
     tenders: list[Tender] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)  # one human-readable reason per card
+    warnings: list[str] = field(default_factory=list)  # imported, but something looks off
 
 
 class _BadCard(Exception):
@@ -61,6 +63,10 @@ def parse_etimad_text(text: str) -> ImportResult:
             label = lines[2] if len(lines) > 2 else "?"
             result.skipped.append(f"card {number} ({label[:60]}): {exc}")
             continue
+        if tender.deadline is None:
+            result.warnings.append(
+                f"card {number} ({tender.title[:60]}): no deadline found; it will not expire on its own"
+            )
         by_reference[tender.reference] = tender  # the same card twice: keep the last copy
     result.tenders = list(by_reference.values())
     return result
@@ -105,19 +111,31 @@ def _lines_before(lines: list[str], label: str) -> list[str]:
 
 
 def _value_after(lines: list[str], label: str) -> str | None:
-    """The text after a label on the same line, e.g. "الرقم المرجعي 123" -> "123"."""
-    for line in lines:
-        normalized = normalize(line)
-        if normalized.startswith(label):
-            words = len(label.split())
-            return " ".join(line.split()[words:])
+    """The value of a label: the rest of its line ("الرقم المرجعي 123", or glued
+    "الرقم المرجعي123"), or the next line when the label stands alone."""
+    for i, line in enumerate(lines):
+        if not normalize(line).startswith(label):
+            continue
+        cut = next(n for n in range(len(line) + 1) if normalize(line[:n]) == label)
+        value = line[cut:].strip(" :\t")
+        if not value and i + 1 < len(lines) and not _is_label(lines[i + 1]):
+            value = lines[i + 1]
+        return value
     return None
+
+
+def _is_label(line: str) -> bool:
+    normalized = normalize(line)
+    return any(normalized.startswith(label) for label in _ALL_LABELS)
 
 
 def _date_in(text: str) -> date | None:
     match = _DATE.search(text)
     if match is None:
         return None
+    year = int(match.group(1))
+    if not 2000 <= year <= 2100:  # e.g. a Hijri date such as 1448-05-24
+        raise _BadCard(f"not a Gregorian date: {match.group()}")
     try:
         return date(*(int(part) for part in match.groups()))
     except ValueError:

@@ -26,14 +26,14 @@ class _TextCollector(HTMLParser):
     def handle_starttag(self, tag: str, attrs) -> None:
         if tag in _HIDDEN_TAGS:
             self.hidden_depth += 1
-        elif tag in _BLOCK_TAGS:
-            self.parts.append("\n")
+        else:  # inline tags (<span>, <b>…) still separate words: "label</span><span>value"
+            self.parts.append("\n" if tag in _BLOCK_TAGS else " ")
 
     def handle_endtag(self, tag: str) -> None:
         if tag in _HIDDEN_TAGS:
             self.hidden_depth = max(0, self.hidden_depth - 1)
-        elif tag in _BLOCK_TAGS:
-            self.parts.append("\n")
+        else:
+            self.parts.append("\n" if tag in _BLOCK_TAGS else " ")
 
     def handle_data(self, data: str) -> None:
         if not self.hidden_depth:
