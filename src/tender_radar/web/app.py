@@ -14,15 +14,25 @@ from datetime import date
 from pathlib import Path
 from typing import Callable
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Form, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, PackageLoader, select_autoescape
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+from tender_radar.ai.provider import LLMProvider, get_provider
 from tender_radar.db import init_db, make_engine, session_scope
+from tender_radar.matching.scorer import run_matching
 from tender_radar.models import CompanyProfile, MatchResult, Tender
-from tender_radar.repository import first_profile, get_tender, latest_brief, list_matches, list_tenders
+from tender_radar.repository import (
+    first_profile,
+    get_tender,
+    latest_brief,
+    list_matches,
+    list_tenders,
+    save_profile,
+)
 from tender_radar.settings import Settings
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -118,8 +128,43 @@ def render_tender(session: Session, ref: str, profile: CompanyProfile, today: da
     )
 
 
-def create_app(settings: Settings | None = None, today: date | None = None, read_only: bool = False) -> FastAPI:
-    """Build the FastAPI app. `today` can be fixed for tests and demos."""
+def _lines(text: str) -> list[str]:
+    """Textarea → list: one item per line, blanks dropped."""
+    return [line.strip() for line in text.splitlines() if line.strip()]
+
+
+def _number(text: str) -> float | None:
+    text = text.strip().replace(",", "")
+    return float(text) if text else None
+
+
+def render_profile_form(profile: CompanyProfile, form: dict | None = None, error: str | None = None) -> str:
+    values = form or {
+        "name": profile.name,
+        "activities": "\n".join(profile.activities),
+        "keywords": "\n".join(profile.keywords),
+        "certifications": "\n".join(profile.certifications),
+        "regions": "\n".join(profile.regions),
+        "excluded_agencies": "\n".join(profile.excluded_agencies),
+        "min_value_sar": "" if profile.min_value_sar is None else f"{profile.min_value_sar:.0f}",
+        "max_value_sar": "" if profile.max_value_sar is None else f"{profile.max_value_sar:.0f}",
+    }
+    return templates.get_template("profile.html").render(
+        profile=profile, values=values, error=error, links=_links(False), has_sample_brief=False
+    )
+
+
+def create_app(
+    settings: Settings | None = None,
+    today: date | None = None,
+    read_only: bool = False,
+    provider: LLMProvider | None = None,
+) -> FastAPI:
+    """Build the FastAPI app.
+
+    `today` can be fixed for tests and demos; `provider` overrides the AI
+    provider from settings (tests pass a FakeProvider to count calls).
+    """
     settings = settings or Settings()
     engine = make_engine(settings.database_url)
     init_db(engine)
@@ -146,6 +191,50 @@ def create_app(settings: Settings | None = None, today: date | None = None, read
         if html is None:
             raise HTTPException(404, "Tender not found")
         return html
+
+    def get_ai() -> LLMProvider:
+        return provider if provider is not None else get_provider(settings)
+
+    if not read_only:
+
+        @app.get("/profile", response_class=HTMLResponse)
+        def profile_page() -> str:
+            return with_profile(lambda s, p: render_profile_form(p))
+
+        @app.post("/profile")
+        def profile_save(
+            name: str = Form(...),
+            activities: str = Form(""),
+            keywords: str = Form(""),
+            certifications: str = Form(""),
+            regions: str = Form(""),
+            excluded_agencies: str = Form(""),
+            min_value_sar: str = Form(""),
+            max_value_sar: str = Form(""),
+        ):
+            form = dict(
+                name=name, activities=activities, keywords=keywords, certifications=certifications,
+                regions=regions, excluded_agencies=excluded_agencies,
+                min_value_sar=min_value_sar, max_value_sar=max_value_sar,
+            )
+            with session_scope(engine) as s:
+                current = first_profile(s)
+                if current is None:
+                    raise HTTPException(503, "No company profile yet. Run: python -m tender_radar seed")
+                try:
+                    updated = CompanyProfile(
+                        id=current.id, name=name.strip(), activities=_lines(activities), keywords=_lines(keywords),
+                        certifications=_lines(certifications), regions=_lines(regions),
+                        excluded_agencies=_lines(excluded_agencies),
+                        min_value_sar=_number(min_value_sar), max_value_sar=_number(max_value_sar),
+                    )
+                except (ValidationError, ValueError) as exc:
+                    message = "; ".join(e["msg"].removeprefix("Value error, ") for e in exc.errors()) if isinstance(
+                        exc, ValidationError) else "Values must be numbers"
+                    return HTMLResponse(render_profile_form(current, form, message), status_code=422)
+                save_profile(s, updated)
+                run_matching(s, updated, get_ai(), current_day())
+            return RedirectResponse("/", status_code=303)
 
     app.state.engine = engine
     app.state.settings = settings

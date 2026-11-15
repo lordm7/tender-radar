@@ -45,6 +45,12 @@ class CompanyProfile(BaseModel):
     regions: list[str] = []
     excluded_agencies: list[str] = []
 
+    @model_validator(mode="after")
+    def _check_value_range(self) -> "CompanyProfile":
+        if self.min_value_sar is not None and self.max_value_sar is not None and self.min_value_sar > self.max_value_sar:
+            raise ValueError("Minimum value must not be greater than the maximum value")
+        return self
+
     @property
     def version(self) -> str:
         """Short fingerprint of everything that affects matching.
