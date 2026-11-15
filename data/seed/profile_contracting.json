@@ -1,0 +1,12 @@
+{
+  "_note": "synthetic demo data - a fictional company, not a real business",
+  "id": "al-bunyan",
+  "name": "Al-Bunyan Contracting & Maintenance (synthetic)",
+  "activities": ["المقاولات", "التشغيل والصيانة والنظافة"],
+  "keywords": ["إنشاء", "صيانة", "نظافة", "ترميم", "رصف", "تكييف", "construction", "maintenance"],
+  "certifications": ["تصنيف المقاولين - الدرجة الثالثة", "شهادة الزكاة والضريبة", "شهادة السعودة"],
+  "min_value_sar": 1000000,
+  "max_value_sar": 30000000,
+  "regions": ["الرياض", "المنطقة الشرقية"],
+  "excluded_agencies": []
+}

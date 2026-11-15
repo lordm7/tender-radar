@@ -1,8 +1,8 @@
 """Command line: `python -m tender_radar <command>`.
 
 Commands:
-  seed    create the database and load the synthetic tenders and demo profile
-  match   run the rule filter + AI scoring for the stored profile
+  seed    create the database and load the synthetic tenders and every demo company profile
+  match   run the rule filter + AI scoring (all companies, or --profile ID)
   brief   summarise a tender booklet PDF into a bid brief
   export  write the read-only static demo site (for GitHub Pages)
   import  read tenders from Etimad list text/HTML that a person copied or saved (kept private)
@@ -24,7 +24,8 @@ from tender_radar.matching.scorer import run_matching
 from tender_radar.models import load_profile, load_seed_tenders
 from tender_radar.reader.brief import build_brief
 from tender_radar.reader.pdf_text import UnreadablePDF, extract_pages
-from tender_radar.repository import first_profile, save_brief, save_profile, upsert_tenders
+from tender_radar.models import CompanyProfile
+from tender_radar.repository import first_profile, get_profile, list_profiles, save_brief, save_profile, upsert_tenders
 from tender_radar.settings import Settings
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -36,23 +37,43 @@ def _cmd_seed(args: argparse.Namespace, settings: Settings) -> int:
     init_db(engine)
     with session_scope(engine) as s:
         stats = upsert_tenders(s, load_seed_tenders(SEED_DIR / "tenders.json"))
-        save_profile(s, load_profile(SEED_DIR / "profile_it_services.json"))
+        profiles = [load_profile(path) for path in sorted(SEED_DIR.glob("profile_*.json"))]
+        for profile in profiles:
+            save_profile(s, profile)
     engine.dispose()
     print(f"Tenders: {stats.inserted} new, {stats.updated} updated, {stats.unchanged} unchanged")
+    print(f"Companies: {', '.join(p.name for p in profiles)}")
     return 0
+
+
+def _pick_profiles(session, wanted: str | None, default_all: bool) -> list[CompanyProfile] | None:
+    """The profiles a command should use; prints a message and returns None if there are none."""
+    if wanted:
+        profile = get_profile(session, wanted)
+        if profile is None:
+            print(f"No company profile '{wanted}'. Known: {', '.join(p.id for p in list_profiles(session)) or 'none'}")
+            return None
+        return [profile]
+    profiles = list_profiles(session) if default_all else [p for p in [first_profile(session)] if p]
+    if not profiles:
+        print("No company profile yet. Run: python -m tender_radar seed")
+        return None
+    return profiles
 
 
 def _cmd_match(args: argparse.Namespace, settings: Settings) -> int:
     engine = make_engine(settings.database_url)
     init_db(engine)
+    provider = get_provider(settings)
     with session_scope(engine) as s:
-        profile = first_profile(s)
-        if profile is None:
-            print("No company profile yet. Run: python -m tender_radar seed")
+        profiles = _pick_profiles(s, args.profile, default_all=True)
+        if profiles is None:
             return 1
-        stats = run_matching(s, profile, get_provider(settings), args.today)
+        for profile in profiles:
+            stats = run_matching(s, profile, provider, args.today)
+            print(f"{profile.name}: scored {stats.scored}, filtered out {stats.filtered_out}, "
+                  f"unscored {stats.unscored}, cached {stats.cached}")
     engine.dispose()
-    print(f"Scored {stats.scored}, filtered out {stats.filtered_out}, unscored {stats.unscored}, cached {stats.cached}")
     return 0
 
 
@@ -66,10 +87,10 @@ def _cmd_brief(args: argparse.Namespace, settings: Settings) -> int:
     engine = make_engine(settings.database_url)
     init_db(engine)
     with session_scope(engine) as s:
-        profile = first_profile(s)
-        if profile is None:
-            print("No company profile yet. Run: python -m tender_radar seed")
+        profiles = _pick_profiles(s, args.profile, default_all=False)
+        if profiles is None:
             return 1
+        profile = profiles[0]
         try:
             brief = build_brief(pages, profile, get_provider(settings))
         except (AIError, ValidationError) as exc:
@@ -119,16 +140,19 @@ def _cmd_import(args: argparse.Namespace, settings: Settings) -> int:
 
 
 def _cmd_export(args: argparse.Namespace, settings: Settings) -> int:
-    from tender_radar.export.static_site import export_site
+    from tender_radar.export.static_site import ExportError, export_site
 
     engine = make_engine(settings.database_url)
     init_db(engine)
     with session_scope(engine) as s:
-        profile = first_profile(s)
-        if profile is None:
-            print("No company profile yet. Run: python -m tender_radar seed")
+        profiles = _pick_profiles(s, args.profile, default_all=True)
+        if profiles is None:
             return 1
-        written = export_site(s, profile, args.today, Path(args.out))
+        try:
+            written = export_site(s, profiles, args.today, Path(args.out))
+        except ExportError as exc:
+            print(f"Export stopped: {exc}")
+            return 1
     engine.dispose()
     print(f"Wrote {len(written)} files to {args.out}/ (open {args.out}/index.html)")
     return 0
@@ -142,15 +166,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     match = sub.add_parser("match", help="score tenders against the company profile")
     match.add_argument("--today", type=date.fromisoformat, default=date.today(), help="YYYY-MM-DD")
+    match.add_argument("--profile", help="company id (default: every company)")
     match.set_defaults(handler=_cmd_match)
 
     brief = sub.add_parser("brief", help="summarise a tender booklet PDF with AI")
     brief.add_argument("path", help="path to the booklet PDF")
+    brief.add_argument("--profile", help="company to check eligibility for (default: the first)")
     brief.set_defaults(handler=_cmd_brief)
 
     export = sub.add_parser("export", help="write the read-only static demo site")
     export.add_argument("--out", default="site", help="output folder (default: site)")
     export.add_argument("--today", type=date.fromisoformat, default=date.today(), help="YYYY-MM-DD")
+    export.add_argument("--profile", help="export one company only (default: every company)")
     export.set_defaults(handler=_cmd_export)
 
     imp = sub.add_parser("import", help="import Etimad list text/HTML you copied or saved (private)")

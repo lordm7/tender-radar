@@ -89,6 +89,12 @@ def get_profile(session: Session, id: str) -> CompanyProfile | None:
     return CompanyProfile.model_validate_json(row.json) if row else None
 
 
+def list_profiles(session: Session) -> list[CompanyProfile]:
+    """Every company profile, ordered by id (stable order for pages and the export)."""
+    rows = session.scalars(select(ProfileRow).order_by(ProfileRow.id))
+    return [CompanyProfile.model_validate_json(row.json) for row in rows]
+
+
 def first_profile(session: Session) -> CompanyProfile | None:
     row = session.scalars(select(ProfileRow).order_by(ProfileRow.id)).first()
     return CompanyProfile.model_validate_json(row.json) if row else None

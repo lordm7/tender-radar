@@ -13,7 +13,7 @@ def run_export(settings, out_dir, with_sample=True):
     with session_scope(engine) as s:
         if with_sample:
             save_brief(s, "sample_booklet.pdf", BookletBrief(scope="نطاق تجريبي"))
-        written = export_site(s, first_profile(s), TODAY, out_dir)
+        written = export_site(s, [first_profile(s)], TODAY, out_dir)
     engine.dispose()
     return written
 
@@ -26,18 +26,18 @@ def test_export_writes_index_and_detail_pages(db_settings, tmp_path):
     out = tmp_path / "site"
     run_export(db_settings, out)
     assert (out / "index.html").exists()
-    assert len(list((out / "tenders").glob("*.html"))) == 9
-    assert (out / "tenders" / "261139001004.html").exists()
+    assert len(list((out / "c" / "najd-digital" / "tenders").glob("*.html"))) == 9
+    assert (out / "c" / "najd-digital" / "tenders" / "261139001004.html").exists()
     assert (out / "briefs" / "sample.html").exists()
     assert (out / "static" / "app.js").exists()
-    assert "scores precomputed on 2026-11-15" in (out / "index.html").read_text(encoding="utf-8")
+    assert "scores precomputed on 2026-11-15" in (out / "c" / "najd-digital" / "index.html").read_text(encoding="utf-8")
 
 
 def test_export_without_sample_brief_has_no_brief_link(db_settings, tmp_path):
     out = tmp_path / "site"
     run_export(db_settings, out, with_sample=False)
     assert not (out / "briefs").exists()
-    assert "briefs/sample.html" not in (out / "index.html").read_text(encoding="utf-8")
+    assert "briefs/sample.html" not in (out / "c" / "najd-digital" / "index.html").read_text(encoding="utf-8")
 
 
 def test_exported_links_are_relative(db_settings, tmp_path):
@@ -88,5 +88,5 @@ def test_read_only_app_hides_imported_tender(db_settings):
         real = list_tenders(s)[0].model_copy(update={"reference": "999000000778", "source": "etimad-import"})
         upsert_tenders(s, [real])
     engine.dispose()
-    assert TestClient(create_app(db_settings, today=TODAY, read_only=True)).get("/tenders/999000000778").status_code == 404
-    assert TestClient(create_app(db_settings, today=TODAY)).get("/tenders/999000000778").status_code == 200
+    assert TestClient(create_app(db_settings, today=TODAY, read_only=True)).get("/c/najd-digital/tenders/999000000778").status_code == 404
+    assert TestClient(create_app(db_settings, today=TODAY)).get("/c/najd-digital/tenders/999000000778").status_code == 200

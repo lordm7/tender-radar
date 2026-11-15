@@ -49,6 +49,37 @@ def test_export_command_writes_site(tmp_path, monkeypatch):
     assert main(["match", "--today", "2026-11-15"]) == 0
     assert main(["export", "--out", str(out), "--today", "2026-11-15"]) == 0
     assert (out / "index.html").exists()
+    assert (out / "c" / "najd-digital" / "index.html").exists()
+    assert (out / "c" / "al-bunyan" / "index.html").exists()
+
+
+def test_seed_loads_every_profile_and_match_runs_for_each(tmp_path, monkeypatch):
+    url = f"sqlite:///{(tmp_path / 'cli.db').as_posix()}"
+    monkeypatch.setenv("TR_DATABASE_URL", url)
+    assert main(["seed"]) == 0
+    assert main(["match", "--today", "2026-11-15", "--profile", "al-bunyan"]) == 0
+    with session_scope(make_engine(url)) as s:
+        assert len(list_matches(s, "al-bunyan")) == 30
+        assert list_matches(s, "najd-digital") == []
+    assert main(["match", "--today", "2026-11-15"]) == 0
+    with session_scope(make_engine(url)) as s:
+        assert len(list_matches(s, "najd-digital")) == 30
+
+
+def test_unknown_profile_is_a_clean_error(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("TR_DATABASE_URL", f"sqlite:///{(tmp_path / 'cli.db').as_posix()}")
+    assert main(["seed"]) == 0
+    assert main(["match", "--profile", "nobody"]) == 1
+    assert "No company profile 'nobody'" in capsys.readouterr().out
+
+
+def test_export_refuses_a_foreign_folder(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("TR_DATABASE_URL", f"sqlite:///{(tmp_path / 'cli.db').as_posix()}")
+    assert main(["seed"]) == 0
+    (tmp_path / "mine").mkdir()
+    (tmp_path / "mine" / "notes.txt").write_text("keep me", encoding="utf-8")
+    assert main(["export", "--out", str(tmp_path / "mine")]) == 1
+    assert "not created by an export" in capsys.readouterr().out
 
 
 def test_brief_command_ai_failure_returns_1(tmp_path, monkeypatch, capsys):

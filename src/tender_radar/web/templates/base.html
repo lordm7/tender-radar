@@ -24,10 +24,11 @@
       </a>
       <nav class="flex flex-wrap items-center gap-2 text-sm">
         <span class="rounded-full bg-amber-300/90 text-amber-950 px-3 py-1 font-medium">Synthetic demo data</span>
+        {% if several_companies and links.company %}<a class="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1" href="{{ links.companies() }}">Switch company</a>{% endif %}
         {% if has_sample_brief %}<a class="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1" href="{{ links.sample_brief() }}">See a booklet brief</a>{% endif %}
         {% if not links.read_only %}
-          <a class="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1" href="/reader">Read a booklet</a>
-          <a class="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1" href="/profile">Company profile</a>
+          <a class="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1" href="{{ links.reader() }}">Read a booklet</a>
+          {% if links.company %}<a class="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1" href="{{ links.profile() }}">Company profile</a>{% endif %}
         {% endif %}
       </nav>
     </div>
