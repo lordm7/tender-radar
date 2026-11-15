@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Read a booklet · Tender Radar{% endblock %}
+{% block content %}
+<a href="{{ links.home() }}" class="text-sm text-emerald-700 hover:underline">← All matches</a>
+<h1 class="mt-3 text-2xl font-semibold">Read a tender booklet</h1>
+<p class="ar mt-1 text-slate-500" dir="rtl">ارفع كراسة الشروط والمواصفات واحصل على ملخص وقائمة قرار المشاركة</p>
+
+{% if error %}
+<div role="alert" class="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800 ring-1 ring-red-200">{{ error }}</div>
+{% endif %}
+
+<form method="post" action="/reader" enctype="multipart/form-data"
+      class="mt-6 rounded-2xl border-2 border-dashed border-emerald-300 bg-white p-8 text-center">
+  <p class="text-slate-600">PDF booklet (Arabic or English), up to {{ max_mb }} MB</p>
+  <input type="file" name="file" accept="application/pdf" required class="mx-auto mt-4 block text-sm">
+  <button class="mt-5 rounded-lg bg-emerald-700 px-5 py-2 font-medium text-white hover:bg-emerald-800">Read with AI</button>
+  <p class="mt-3 text-xs text-slate-500">Takes up to a minute. Scanned booklets (images only) are not supported yet.</p>
+</form>
+{% endblock %}

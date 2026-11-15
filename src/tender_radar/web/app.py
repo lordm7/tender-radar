@@ -9,34 +9,41 @@ free public demo, so both always look the same.
 from __future__ import annotations
 
 import re
+import tempfile
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Callable
 
-from fastapi import FastAPI, Form, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, PackageLoader, select_autoescape
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from tender_radar.ai.provider import LLMProvider, get_provider
+from tender_radar.ai.provider import AIError, LLMProvider, get_provider
 from tender_radar.db import init_db, make_engine, session_scope
 from tender_radar.matching.scorer import run_matching
-from tender_radar.models import CompanyProfile, MatchResult, Tender
+from tender_radar.models import BookletBrief, CompanyProfile, MatchResult, Tender
+from tender_radar.reader.brief import build_brief
+from tender_radar.reader.pdf_text import UnreadablePDF, extract_pages
 from tender_radar.repository import (
     first_profile,
+    get_brief,
     get_tender,
     latest_brief,
+    latest_brief_filename,
     list_matches,
     list_tenders,
+    save_brief,
     save_profile,
 )
 from tender_radar.settings import Settings
 
 STATIC_DIR = Path(__file__).parent / "static"
 SAMPLE_BOOKLET = "sample_booklet.pdf"
+MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 
 templates = Environment(loader=PackageLoader("tender_radar.web", "templates"), autoescape=select_autoescape())
 
@@ -154,6 +161,19 @@ def render_profile_form(profile: CompanyProfile, form: dict | None = None, error
     )
 
 
+def render_brief(brief: BookletBrief, filename: str, read_only: bool) -> str:
+    """Brief page. In the static demo it lives in briefs/, one folder down."""
+    return templates.get_template("brief.html").render(
+        brief=brief, filename=filename, links=_links(read_only, depth=1), has_sample_brief=False
+    )
+
+
+def render_reader(error: str | None = None) -> str:
+    return templates.get_template("reader.html").render(
+        error=error, links=_links(False), has_sample_brief=False, max_mb=MAX_UPLOAD_BYTES // (1024 * 1024)
+    )
+
+
 def create_app(
     settings: Settings | None = None,
     today: date | None = None,
@@ -195,7 +215,52 @@ def create_app(
     def get_ai() -> LLMProvider:
         return provider if provider is not None else get_provider(settings)
 
+    @app.get("/briefs/sample", response_class=HTMLResponse)
+    def sample_brief() -> str:
+        with session_scope(engine) as s:
+            found = latest_brief(s, SAMPLE_BOOKLET)
+        if found is None:
+            raise HTTPException(404, "No sample brief yet. Run: python -m tender_radar brief data/seed/sample_booklet.pdf")
+        return render_brief(found[1], found[0], read_only)
+
+    @app.get("/briefs/{brief_id}", response_class=HTMLResponse)
+    def brief_page(brief_id: int) -> str:
+        with session_scope(engine) as s:
+            brief = get_brief(s, brief_id)
+            filename = latest_brief_filename(s, brief_id)
+        if brief is None:
+            raise HTTPException(404, "Brief not found")
+        return render_brief(brief, filename or "", read_only)
+
     if not read_only:
+
+        @app.get("/reader", response_class=HTMLResponse)
+        def reader_page() -> str:
+            return render_reader()
+
+        @app.post("/reader")
+        async def reader_upload(file: UploadFile = File(...)):
+            content = await file.read(MAX_UPLOAD_BYTES + 1)
+            if len(content) > MAX_UPLOAD_BYTES:
+                return HTMLResponse(render_reader("The file is larger than 15 MB."), status_code=413)
+            filename = Path(file.filename or "booklet.pdf").name
+            with tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "upload.pdf"
+                path.write_bytes(content)
+                try:
+                    pages = extract_pages(path)
+                except UnreadablePDF as exc:
+                    return HTMLResponse(render_reader(str(exc)), status_code=400)
+            with session_scope(engine) as s:
+                profile = first_profile(s)
+                if profile is None:
+                    raise HTTPException(503, "No company profile yet. Run: python -m tender_radar seed")
+                try:
+                    brief = build_brief(pages, profile, get_ai())
+                except (AIError, ValidationError):
+                    return HTMLResponse(render_reader("The AI could not read this booklet right now. Please try again later."), status_code=502)
+                brief_id = save_brief(s, filename, brief)
+            return RedirectResponse(f"/briefs/{brief_id}", status_code=303)
 
         @app.get("/profile", response_class=HTMLResponse)
         def profile_page() -> str:

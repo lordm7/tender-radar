@@ -152,3 +152,9 @@ def latest_brief(session: Session, filename: str | None = None) -> tuple[str, Bo
         query = query.where(BriefRow.filename == filename)
     row = session.scalars(query).first()
     return (row.filename, BookletBrief.model_validate_json(row.json)) if row else None
+
+
+def latest_brief_filename(session: Session, id: int) -> str | None:
+    """The original file name of a stored brief."""
+    row = session.get(BriefRow, id)
+    return row.filename if row else None
