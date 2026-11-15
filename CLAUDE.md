@@ -54,7 +54,8 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - `scripts/make_sample_booklet.py` needs Windows Arial (`C:/Windows/Fonts`) to render Arabic correctly.
 
 ## Pending
-- [ ] Final whole-branch review of Plan 1, then fix any Critical/Important findings
+- [x] Final whole-branch review of Plan 1: 4 fixes made (expired tenders, locked PDFs, AI quota backoff, profile save without AI); 64 tests pass
+- [ ] Deferred minors from the review (see `.superpowers/sdd/.../progress.md`): Arabic NFKC/Persian digits, word-boundary Latin keywords, blocking upload route, auth on write routes before public hosting, slug collisions, stale export files
 - [ ] The user: get a free Gemini API key, run `scripts/ai_smoke_test.py`, and pick `TR_GEMINI_MODEL`
 - [ ] The user: label the 20 tenders in `data/eval/labels.json`, then run `scripts/eval_matching.py` (bar: 80%)
 - [ ] Plan 2: Etimad recon (terms, robots.txt, open data), the collector, the daily GitHub Actions job, the Pages deploy and the digest email
