@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% macro score_badge(m) -%}
+  {%- if m and m.status == "scored" -%}
+    {%- set cls = "bg-emerald-600" if m.score >= 80 else ("bg-amber-500" if m.score >= 50 else "bg-slate-400") -%}
+    <span class="inline-flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl {{ cls }} text-white">
+      <span class="text-xl font-bold leading-none">{{ m.score }}</span><span class="text-[10px] uppercase tracking-wide">fit</span>
+    </span>
+  {%- else -%}
+    <span class="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-slate-500 text-xs text-center">not<br>scored</span>
+  {%- endif -%}
+{%- endmacro %}
+{% block content %}
+<section class="mb-6">
+  <p class="text-sm text-slate-500">Matches for</p>
+  <h1 class="text-2xl font-semibold">{{ profile.name }}</h1>
+  <p class="text-sm text-slate-500 mt-1">{{ results|length }} tenders worth a look · {{ filtered|length }} filtered out by rules · as of {{ today.isoformat() }}</p>
+</section>
+
+<section class="mb-5 flex flex-wrap gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 text-sm" aria-label="Filters">
+  <label class="flex items-center gap-2">Min score
+    <select id="f-score" class="rounded-md border-slate-300 border px-2 py-1">
+      <option value="0">Any</option><option value="50">50+</option><option value="80">80+</option>
+    </select>
+  </label>
+  <label class="flex items-center gap-2">Agency
+    <select id="f-agency" class="rounded-md border-slate-300 border px-2 py-1 ar" dir="auto">
+      <option value="">All</option>
+      {% for a in agencies %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="flex items-center gap-2">Deadline
+    <select id="f-days" class="rounded-md border-slate-300 border px-2 py-1">
+      <option value="">Any</option><option value="14">Within 14 days</option><option value="30">Within 30 days</option>
+    </select>
+  </label>
+  <span id="f-count" class="ml-auto self-center text-slate-500"></span>
+</section>
+
+<section id="results" class="grid gap-3">
+  {% for r in results %}
+  <a href="{{ links.tender(r.tender.reference) }}" class="card flex gap-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 hover:ring-emerald-500 transition"
+     data-reference="{{ r.tender.reference }}" data-score="{{ r.match.score if r.match and r.match.score is not none else 0 }}"
+     data-agency="{{ r.tender.agency }}" data-days-left="{{ r.days_left if r.days_left is not none else '' }}">
+    {{ score_badge(r.match) }}
+    <div class="min-w-0 flex-1">
+      <h3 dir="auto" class="ar text-lg font-semibold text-slate-900">{{ r.tender.title }}</h3>
+      <p class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
+        <span dir="auto" class="ar">{{ r.tender.agency }}</span>
+        <span>⏱ {{ deadline_label(r.tender.deadline) }}</span>
+        {% if r.tender.estimated_value_sar %}<span>≈ {{ "{:,.0f}".format(r.tender.estimated_value_sar) }} SAR</span>{% endif %}
+        <span class="text-slate-400">{{ r.tender.reference }}</span>
+      </p>
+      {% if r.match %}
+      <div class="mt-2 grid gap-1 text-sm md:grid-cols-2">
+        <ul class="list-disc pl-5 text-slate-600">{% for x in r.match.reasons_en %}<li>{{ x }}</li>{% endfor %}</ul>
+        <ul dir="rtl" class="ar list-disc pr-5 text-slate-600">{% for x in r.match.reasons_ar %}<li>{{ x }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+    </div>
+  </a>
+  {% else %}
+  <p class="rounded-xl bg-white p-6 text-slate-500 ring-1 ring-slate-200">No matching tenders yet.</p>
+  {% endfor %}
+</section>
+
+<details id="filtered" class="mt-8 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+  <summary class="cursor-pointer font-medium">Filtered out ({{ filtered|length }}) <span class="text-slate-500 font-normal">— rejected by free rules before any AI call</span></summary>
+  <ul class="mt-3 divide-y divide-slate-100 text-sm">
+    {% for r in filtered %}
+    <li class="flex flex-wrap justify-between gap-2 py-2">
+      <span dir="auto" class="ar">{{ r.tender.title }}</span>
+      <span class="text-slate-500">{{ r.match.reasons_en|join(", ") }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</details>
+{% endblock %}
+{% block scripts %}<script src="{{ links.static('app.js') }}"></script>{% endblock %}

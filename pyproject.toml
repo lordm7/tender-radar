@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tender-radar"
+version = "0.1.0"
+description = "Finds Saudi government tenders that fit a company and turns tender booklets into bid briefs, using AI."
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.6",
+    "sqlalchemy>=2.0",
+    "google-genai>=1.0",
+    "fastapi>=0.110",
+    "jinja2>=3.1",
+    "uvicorn>=0.29",
+    "python-multipart>=0.0.9",
+    "pymupdf>=1.24",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+tender_radar = ["prompts/*.md", "web/templates/*.html", "web/static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

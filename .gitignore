@@ -6,3 +6,5 @@ site/
 .superpowers/
 *.egg-info/
 .pytest_cache/
+.cc-sessions/
+CLAUDE-Archive.md

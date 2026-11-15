@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Tender Radar{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: "Inter", "IBM Plex Sans Arabic", system-ui, sans-serif; }
+    [dir="rtl"], .ar { font-family: "IBM Plex Sans Arabic", "Inter", sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <header class="bg-gradient-to-r from-emerald-900 to-teal-800 text-white">
+    <div class="max-w-6xl mx-auto px-4 py-5 flex flex-wrap items-center justify-between gap-3">
+      <a href="{{ links.home() }}" class="flex items-center gap-3">
+        <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-xl">◎</span>
+        <span>
+          <span class="block text-lg font-semibold leading-tight">Tender Radar</span>
+          <span class="block text-xs text-emerald-100 ar">رادار المنافسات الحكومية</span>
+        </span>
+      </a>
+      <nav class="flex flex-wrap items-center gap-2 text-sm">
+        <span class="rounded-full bg-amber-300/90 text-amber-950 px-3 py-1 font-medium">Synthetic demo data</span>
+        {% if has_sample_brief %}<a class="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1" href="{{ links.sample_brief() }}">See a booklet brief</a>{% endif %}
+        {% if not links.read_only %}
+          <a class="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1" href="/reader">Read a booklet</a>
+          <a class="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1" href="/profile">Company profile</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+  <main class="max-w-6xl mx-auto px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="max-w-6xl mx-auto px-4 pb-10 text-xs text-slate-500">
+    {% block footer %}{{ footer or "Tender Radar · synthetic demo data · built with Python + AI" }}{% endblock %}
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

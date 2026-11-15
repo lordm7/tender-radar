@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ tender.reference }} · Tender Radar{% endblock %}
+{% block content %}
+<a href="{{ links.home() }}" class="text-sm text-emerald-700 hover:underline">← All matches</a>
+<article class="mt-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+  <p class="text-sm text-slate-400">{{ tender.reference }} · {{ tender.tender_type }}</p>
+  <h1 dir="auto" class="ar mt-1 text-2xl font-semibold text-slate-900">{{ tender.title }}</h1>
+
+  {% if match and match.status == "scored" %}
+  <div class="mt-5 flex items-center gap-4 rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
+    <span class="text-4xl font-bold text-emerald-700">{{ match.score }}</span>
+    <span class="text-sm text-emerald-900">AI fit score for {{ profile.name }}</span>
+  </div>
+  {% elif match %}
+  <div class="mt-5 rounded-xl bg-slate-100 p-4 text-sm">Status: {{ match.status }}</div>
+  {% endif %}
+
+  {% if match %}
+  <div class="mt-5 grid gap-4 md:grid-cols-2">
+    <section><h2 class="font-medium">Why</h2>
+      <ul class="mt-2 list-disc pl-5 text-slate-700">{% for x in match.reasons_en %}<li>{{ x }}</li>{% endfor %}</ul></section>
+    <section dir="rtl" class="ar"><h2 class="font-medium">لماذا</h2>
+      <ul class="mt-2 list-disc pr-5 text-slate-700">{% for x in match.reasons_ar %}<li>{{ x }}</li>{% endfor %}</ul></section>
+  </div>
+  {% endif %}
+
+  <dl class="mt-6 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+    <div><dt class="text-slate-500">Agency</dt><dd dir="auto" class="ar">{{ tender.agency }}</dd></div>
+    <div><dt class="text-slate-500">Activity</dt><dd dir="auto" class="ar">{{ tender.activity }}</dd></div>
+    <div><dt class="text-slate-500">Region</dt><dd dir="auto" class="ar">{{ tender.region or "—" }}</dd></div>
+    <div><dt class="text-slate-500">Deadline</dt><dd>{{ tender.deadline.isoformat() if tender.deadline else "" }} ({{ deadline_label(tender.deadline) }})</dd></div>
+    <div><dt class="text-slate-500">Estimated value</dt><dd>{{ "{:,.0f} SAR".format(tender.estimated_value_sar) if tender.estimated_value_sar else "—" }}</dd></div>
+    <div><dt class="text-slate-500">Published</dt><dd>{{ tender.published_on.isoformat() if tender.published_on else "—" }}</dd></div>
+  </dl>
+  {% if tender.description %}
+  <p dir="auto" class="ar mt-6 leading-relaxed text-slate-700">{{ tender.description }}</p>
+  {% endif %}
+</article>
+{% endblock %}
