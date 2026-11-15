@@ -54,3 +54,39 @@ def test_export_has_no_upload_or_profile_forms(db_settings, tmp_path):
     for html in all_html(out):
         assert "<form" not in html
         assert "/profile" not in html
+
+
+def test_imported_tenders_never_reach_the_public_export(db_settings, tmp_path):
+    """Real Etimad data is private: the read-only demo shows seed tenders only."""
+    from tender_radar.repository import upsert_tenders
+
+    engine = make_engine(db_settings.database_url)
+    with session_scope(engine) as s:
+        from tender_radar.ai.provider import FakeProvider
+        from tender_radar.matching.scorer import run_matching
+        from tender_radar.repository import list_tenders
+
+        real = list_tenders(s)[0].model_copy(update={"reference": "999000000777", "title": "منافسة حقيقية سرية", "source": "etimad-import"})
+        upsert_tenders(s, [real])
+        run_matching(s, first_profile(s), FakeProvider(), TODAY)
+    engine.dispose()
+    out = tmp_path / "site"
+    run_export(db_settings, out)
+    for html in all_html(out):
+        assert "999000000777" not in html
+        assert "منافسة حقيقية سرية" not in html
+
+
+def test_read_only_app_hides_imported_tender(db_settings):
+    from fastapi.testclient import TestClient
+
+    from tender_radar.repository import list_tenders, upsert_tenders
+    from tender_radar.web.app import create_app
+
+    engine = make_engine(db_settings.database_url)
+    with session_scope(engine) as s:
+        real = list_tenders(s)[0].model_copy(update={"reference": "999000000778", "source": "etimad-import"})
+        upsert_tenders(s, [real])
+    engine.dispose()
+    assert TestClient(create_app(db_settings, today=TODAY, read_only=True)).get("/tenders/999000000778").status_code == 404
+    assert TestClient(create_app(db_settings, today=TODAY)).get("/tenders/999000000778").status_code == 200

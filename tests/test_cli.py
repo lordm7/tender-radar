@@ -66,3 +66,29 @@ def test_brief_command_ai_failure_returns_1(tmp_path, monkeypatch, capsys):
     assert main(["seed"]) == 0
     assert main(["brief", str(pdf)]) == 1
     assert "AI could not read this booklet" in capsys.readouterr().out
+
+
+def test_import_command_reads_copied_text_and_saved_html(tmp_path, monkeypatch, capsys):
+    from pathlib import Path
+
+    from tender_radar.repository import get_tender
+
+    fixture = Path(__file__).parent / "fixtures" / "etimad_copy.txt"
+    url = f"sqlite:///{(tmp_path / 'cli.db').as_posix()}"
+    monkeypatch.setenv("TR_DATABASE_URL", url)
+    assert main(["seed"]) == 0
+    assert main(["import", str(fixture)]) == 0
+    out = capsys.readouterr().out
+    assert "3 new" in out and "1 skipped" in out and "no reference number" in out
+    html = tmp_path / "saved.html"
+    html.write_text("<div>" + fixture.read_text(encoding="utf-8").replace("\n", "</div><div>") + "</div>", encoding="utf-8")
+    assert main(["import", str(html)]) == 0
+    assert "3 unchanged" in capsys.readouterr().out
+    with session_scope(make_engine(url)) as s:
+        assert get_tender(s, "999000000001").source == "etimad-import"
+
+
+def test_import_missing_file_fails_cleanly(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("TR_DATABASE_URL", f"sqlite:///{(tmp_path / 'cli.db').as_posix()}")
+    assert main(["import", str(tmp_path / "nope.txt")]) == 1
+    assert "not found" in capsys.readouterr().out

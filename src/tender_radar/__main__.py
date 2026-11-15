@@ -5,6 +5,7 @@ Commands:
   match   run the rule filter + AI scoring for the stored profile
   brief   summarise a tender booklet PDF into a bid brief
   export  write the read-only static demo site (for GitHub Pages)
+  import  read tenders from Etimad list text/HTML that a person copied or saved (kept private)
 """
 
 from __future__ import annotations
@@ -81,6 +82,42 @@ def _cmd_brief(args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def _read_import_file(path: Path) -> str:
+    """Saved pages are usually UTF-8; older Arabic Windows tools save as cp1256."""
+    raw = path.read_bytes()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("cp1256", errors="replace")
+    if path.suffix.lower() in (".html", ".htm"):
+        from tender_radar.importer.etimad_html import html_to_text
+
+        text = html_to_text(text)
+    return text
+
+
+def _cmd_import(args: argparse.Namespace, settings: Settings) -> int:
+    from tender_radar.importer.etimad_text import parse_etimad_text
+
+    paths = [Path(p) for p in args.paths]
+    missing = [str(p) for p in paths if not p.is_file()]
+    if missing:
+        print(f"File not found: {', '.join(missing)}")
+        return 1
+    engine = make_engine(settings.database_url)
+    init_db(engine)
+    for path in paths:
+        result = parse_etimad_text(_read_import_file(path))
+        with session_scope(engine) as s:
+            stats = upsert_tenders(s, result.tenders)
+        print(f"{path.name}: {stats.inserted} new, {stats.updated} updated, {stats.unchanged} unchanged, {len(result.skipped)} skipped")
+        for reason in result.skipped:
+            print(f"  skipped {reason}")
+    engine.dispose()
+    print("Imported tenders are private: they never appear in the exported demo. Next: python -m tender_radar match")
+    return 0
+
+
 def _cmd_export(args: argparse.Namespace, settings: Settings) -> int:
     from tender_radar.export.static_site import export_site
 
@@ -115,6 +152,10 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("--out", default="site", help="output folder (default: site)")
     export.add_argument("--today", type=date.fromisoformat, default=date.today(), help="YYYY-MM-DD")
     export.set_defaults(handler=_cmd_export)
+
+    imp = sub.add_parser("import", help="import Etimad list text/HTML you copied or saved (private)")
+    imp.add_argument("paths", nargs="+", help=".txt (copied text) or .html (saved page) files")
+    imp.set_defaults(handler=_cmd_import)
     return parser
 
 

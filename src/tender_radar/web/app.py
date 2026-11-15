@@ -96,11 +96,22 @@ class Row:
     days_left: int | None
 
 
-def _rows(session: Session, profile: CompanyProfile, today: date) -> tuple[list[Row], list[Row]]:
+def is_public(tender: Tender) -> bool:
+    """Only synthetic seed tenders may appear in the public, read-only demo.
+
+    Tenders imported from Etimad are private (its usage policy forbids
+    republishing without written permission), so read-only pages never show them.
+    """
+    return tender.source == "seed"
+
+
+def _rows(session: Session, profile: CompanyProfile, today: date, public_only: bool = False) -> tuple[list[Row], list[Row]]:
     """Split tenders into (results to show, filtered-out), results sorted best first."""
     matches = {m.tender_reference: m for m in list_matches(session, profile.id)}
     results, filtered = [], []
     for t in list_tenders(session):
+        if public_only and not is_public(t):
+            continue
         m = matches.get(t.reference)
         row = Row(t, m, (t.deadline - today).days if t.deadline else None)
         expired = row.days_left is not None and row.days_left < 0  # closed since the last matching run
@@ -126,7 +137,7 @@ def _common(session: Session, profile: CompanyProfile, today: date, links: Links
 
 
 def render_dashboard(session: Session, profile: CompanyProfile, today: date, read_only: bool) -> str:
-    results, filtered = _rows(session, profile, today)
+    results, filtered = _rows(session, profile, today, public_only=read_only)
     agencies = sorted({r.tender.agency for r in results})
     return templates.get_template("dashboard.html").render(
         results=results, filtered=filtered, agencies=agencies, **_common(session, profile, today, _links(read_only))
@@ -135,7 +146,7 @@ def render_dashboard(session: Session, profile: CompanyProfile, today: date, rea
 
 def render_tender(session: Session, ref: str, profile: CompanyProfile, today: date, read_only: bool) -> str | None:
     tender = get_tender(session, ref)
-    if tender is None:
+    if tender is None or (read_only and not is_public(tender)):
         return None
     match = next((m for m in list_matches(session, profile.id) if m.tender_reference == ref), None)
     return templates.get_template("tender.html").render(

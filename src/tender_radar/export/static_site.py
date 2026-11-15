@@ -38,7 +38,7 @@ def export_site(session: Session, profile: CompanyProfile, today: date, out_dir:
     out_dir = Path(out_dir)
     written = [_write(out_dir / "index.html", render_dashboard(session, profile, today, read_only=True))]
 
-    results, _filtered = _rows(session, profile, today)
+    results, _filtered = _rows(session, profile, today, public_only=True)
     for row in results:
         ref = row.tender.reference
         html = render_tender(session, ref, profile, today, read_only=True)
