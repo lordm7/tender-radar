@@ -39,6 +39,7 @@ from tender_radar.repository import (
     save_brief,
     save_profile,
 )
+from tender_radar.regions import infer_region
 from tender_radar.settings import Settings
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -114,6 +115,7 @@ def _common(session: Session, profile: CompanyProfile, today: date, links: Links
         "today": today,
         "links": links,
         "deadline_label": lambda d: deadline_label(d, today),
+        "infer_region": infer_region,
         "has_sample_brief": latest_brief(session, SAMPLE_BOOKLET) is not None,
         "footer": (
             f"Synthetic demo data · scores precomputed on {today.isoformat()} · built with Python + AI"

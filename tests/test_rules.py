@@ -56,3 +56,31 @@ def test_non_it_tender_filtered(profile):
 def test_seed_data_split(profile, seed_tenders):
     passed = [t for t in seed_tenders if prefilter(t, profile, TODAY).passed]
     assert 8 <= len(passed) <= 14
+
+
+def test_normalize_wider_variants():
+    assert normalize("مدرسة") == normalize("مدرسه")
+    assert normalize("مستشفى") == normalize("مستشفي")
+    assert normalize("ٱلرياض") == normalize("الرياض")
+    assert normalize("سنة ۲۰۲۶") == "سنه 2026"  # Persian digits
+    assert normalize("ﻻ") == normalize("لا")  # presentation form via NFKC
+    assert normalize("الأمن") == normalize("الأمن")  # decomposed hamza
+
+
+def test_latin_keyword_matches_whole_words_only(profile):
+    p = profile.model_copy(update={"keywords": ["AI"], "activities": []})
+    assert not prefilter(make_tender(title="building maintenance"), p, TODAY).passed
+    assert prefilter(make_tender(title="AI platform"), p, TODAY).passed
+
+
+def test_region_inferred_from_agency(profile):
+    p = profile.model_copy(update={"regions": ["الرياض"]})
+    far = make_tender(region=None, agency="أمانة منطقة عسير")
+    near = make_tender(region=None, agency="فرع الوزارة بمنطقة الرياض")
+    assert prefilter(far, p, TODAY).reasons == ["region not covered"]
+    assert prefilter(near, p, TODAY).passed
+
+
+def test_no_region_anywhere_passes(profile):
+    p = profile.model_copy(update={"regions": ["الرياض"]})
+    assert prefilter(make_tender(region=None, agency="وزارة الخدمات الرقمية"), p, TODAY).passed

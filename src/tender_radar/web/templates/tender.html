@@ -27,7 +27,7 @@
   <dl class="mt-6 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
     <div><dt class="text-slate-500">Agency</dt><dd dir="auto" class="ar">{{ tender.agency }}</dd></div>
     <div><dt class="text-slate-500">Activity</dt><dd dir="auto" class="ar">{{ tender.activity }}</dd></div>
-    <div><dt class="text-slate-500">Region</dt><dd dir="auto" class="ar">{{ tender.region or "—" }}</dd></div>
+    <div><dt class="text-slate-500">Region</dt><dd dir="auto" class="ar">{% if tender.region %}{{ tender.region }}{% elif infer_region(tender.agency) %}{{ infer_region(tender.agency) }} (from agency name){% else %}—{% endif %}</dd></div>
     <div><dt class="text-slate-500">Deadline</dt><dd>{{ tender.deadline.isoformat() if tender.deadline else "" }}{% if tender.deadline_time %} {{ tender.deadline_time }}{% endif %} ({{ deadline_label(tender.deadline) }})</dd></div>
     <div><dt class="text-slate-500">Inquiries until</dt><dd>{{ tender.inquiry_deadline.isoformat() if tender.inquiry_deadline else "—" }}</dd></div>
     <div><dt class="text-slate-500">Booklet price</dt><dd dir="auto">{% if tender.booklet_price_sar is none %}—{% elif tender.booklet_price_sar == 0 %}مجانا / Free{% else %}{{ "{:,.0f} SAR".format(tender.booklet_price_sar) }}{% endif %}</dd></div>

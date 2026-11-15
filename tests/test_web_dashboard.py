@@ -74,3 +74,8 @@ def test_tender_page_shows_etimad_card_fields(client):
     assert "View on Etimad" not in html  # seed tenders have no source link
     free = client.get("/tenders/261139001001").text
     assert "مجانا / Free" in free
+
+
+def test_tender_page_shows_inferred_region(client):
+    html = client.get("/tenders/261139001003").text  # agency name says "بالمنطقة الشرقية"
+    assert "المنطقة الشرقية (from agency name)" in html
