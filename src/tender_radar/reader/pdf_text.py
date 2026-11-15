@@ -35,7 +35,11 @@ def extract_pages(path: Path) -> list[str]:
         if doc.needs_pass:
             raise UnreadablePDF("This PDF is password-protected. Please upload an unlocked copy.")
         try:
+            if len(doc) == 0:
+                raise UnreadablePDF("The PDF has no pages.")
             pages = [clean_text(page.get_text()) for page in doc]
+        except UnreadablePDF:
+            raise
         except Exception as exc:  # damaged pages that still opened
             raise UnreadablePDF("This PDF is damaged and its text could not be read.") from exc
     if sum(len(p.strip()) for p in pages) < MIN_TEXT_CHARS:

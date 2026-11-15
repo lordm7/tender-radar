@@ -107,3 +107,18 @@ def test_quota_exhausted_stops_calling_ai_for_rest_of_run(seeded, profile):
     stats = run(seeded, profile, fake, max_retries=2)
     assert len(fake.calls) == 3
     assert stats.unscored == PASSING
+
+
+def test_out_of_range_score_is_rejected_not_stored(seeded, profile):
+    stats = run(seeded, profile, FakeProvider([{"score": 150, "reasons_en": ["x"], "reasons_ar": ["س"]}]))
+    assert stats.unscored == 1
+    with session_scope(seeded) as s:
+        assert get_match(s, FIRST_PASSING, profile.id).score is None
+
+
+def test_unscored_tender_is_logged_with_the_reason(seeded, profile, caplog):
+    from tender_radar.ai.provider import AIError
+
+    with caplog.at_level("WARNING", logger="tender_radar.matching.scorer"):
+        run(seeded, profile, FakeProvider([AIError("503 UNAVAILABLE")]))
+    assert any(FIRST_PASSING in r.getMessage() and "503 UNAVAILABLE" in r.getMessage() for r in caplog.records)

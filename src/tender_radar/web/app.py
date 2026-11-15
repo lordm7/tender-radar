@@ -328,8 +328,12 @@ def create_app(
             return render_reader(all_profiles())
 
         @app.post("/reader")
-        async def reader_upload(file: UploadFile = File(...), profile_id: str = Form("")):
-            content = await file.read(MAX_UPLOAD_BYTES + 1)
+        def reader_upload(file: UploadFile = File(...), profile_id: str = Form("")):
+            # A plain `def` route runs in a worker thread, so reading the PDF and
+            # waiting for the AI does not freeze the app for other visitors.
+            content = file.file.read(MAX_UPLOAD_BYTES + 1)
+            if not content:
+                return HTMLResponse(render_reader(all_profiles(), "The file is empty."), status_code=400)
             if len(content) > MAX_UPLOAD_BYTES:
                 return HTMLResponse(render_reader(all_profiles(), "The file is larger than 15 MB."), status_code=413)
             filename = Path(file.filename or "booklet.pdf").name

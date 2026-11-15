@@ -88,3 +88,30 @@ def test_encrypted_pdf_raises_unreadable(tmp_path):
     doc.save(path, encryption=pymupdf.PDF_ENCRYPT_AES_256, user_pw="secret", owner_pw="owner")
     with pytest.raises(UnreadablePDF, match="password"):
         extract_pages(path)
+
+
+def test_pdf_with_no_pages_has_its_own_message(tmp_path, monkeypatch):
+    import pymupdf
+
+    from tender_radar.reader import pdf_text
+
+    class NoPages:
+        needs_pass = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def __iter__(self):
+            return iter([])
+
+        def __len__(self):
+            return 0
+
+    monkeypatch.setattr(pymupdf, "open", lambda *a, **k: NoPages())
+    path = tmp_path / "empty.pdf"
+    path.write_bytes(b"%PDF-1.7")
+    with pytest.raises(pdf_text.UnreadablePDF, match="The PDF has no pages"):
+        pdf_text.extract_pages(path)
