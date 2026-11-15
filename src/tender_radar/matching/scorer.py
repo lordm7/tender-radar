@@ -12,6 +12,7 @@ For every tender:
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 from datetime import date
@@ -25,6 +26,8 @@ from tender_radar.ai.provider import AIError, LLMProvider, RateLimited
 from tender_radar.matching.rules import prefilter
 from tender_radar.models import AIScore, CompanyProfile, MatchResult, Tender
 from tender_radar.repository import get_match, get_match_hash, get_tender_hash, list_tenders, save_match
+
+log = logging.getLogger(__name__)
 
 UNSCORED_REASON = "AI unavailable – will retry next run"
 # Free-tier quotas are counted per minute, so wait long enough for the window to move (15s, then 30s).
@@ -47,7 +50,9 @@ def build_score_prompt(tender: Tender, profile: CompanyProfile) -> str:
     )
 
 
-def _ask_ai(provider: LLMProvider, prompt: str, max_retries: int, sleep: Callable[[float], None]) -> AIScore | None:
+def _ask_ai(
+    provider: LLMProvider, prompt: str, max_retries: int, sleep: Callable[[float], None], reference: str = ""
+) -> AIScore | None:
     """Return the AI score, or None if the answer was unusable.
 
     Raises RateLimited when the provider is still rate-limited after all retries,
@@ -60,7 +65,8 @@ def _ask_ai(provider: LLMProvider, prompt: str, max_retries: int, sleep: Callabl
             if attempt == max_retries:
                 raise
             sleep(RETRY_WAIT_SECONDS * (2**attempt))
-        except (AIError, ValidationError):
+        except (AIError, ValidationError) as exc:
+            log.warning("Tender %s left unscored: %s", reference, " ".join(str(exc).split())[:300])
             return None
     return None
 
@@ -101,9 +107,10 @@ def run_matching(
         ai = None
         if not quota_exhausted:
             try:
-                ai = _ask_ai(provider, build_score_prompt(tender, profile), max_retries, sleep)
+                ai = _ask_ai(provider, build_score_prompt(tender, profile), max_retries, sleep, tender.reference)
             except RateLimited:
                 quota_exhausted = True
+                log.warning("AI still rate-limited after %d retries; skipping AI calls for the rest of this run", max_retries)
         if ai is None:
             save_match(session, MatchResult(**base, status="unscored", reasons_en=[UNSCORED_REASON]), content_hash)
             stats.unscored += 1

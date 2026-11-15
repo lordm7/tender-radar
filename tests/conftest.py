@@ -55,3 +55,5 @@ def db_settings(tmp_path, seed_tenders, profile):
 def _never_use_real_ai(monkeypatch):
     """Tests must never call a paid/real AI, even if a local .env selects Gemini."""
     monkeypatch.setenv("TR_AI_PROVIDER", "fake")
+    for name in ("TR_SMTP_HOST", "TR_SMTP_USER", "TR_SMTP_PASSWORD", "TR_DIGEST_TO"):
+        monkeypatch.delenv(name, raising=False)  # tests must never send real email

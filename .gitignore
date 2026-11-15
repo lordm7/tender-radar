@@ -8,3 +8,8 @@ site/
 .pytest_cache/
 .cc-sessions/
 CLAUDE-Archive.md
+# Real tender data imported from Etimad: private, personal use only, never committed or published
+data/imports/
+
+# Digest previews may contain private imported tenders
+digests/

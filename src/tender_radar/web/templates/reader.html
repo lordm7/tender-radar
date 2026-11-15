@@ -13,6 +13,13 @@
       class="mt-6 rounded-2xl border-2 border-dashed border-emerald-300 bg-white p-8 text-center">
   <p class="text-slate-600">PDF booklet (Arabic or English), up to {{ max_mb }} MB</p>
   <input type="file" name="file" accept="application/pdf" required class="mx-auto mt-4 block text-sm">
+  {% if profiles|length > 1 %}
+  <label class="mx-auto mt-4 flex max-w-sm items-center justify-center gap-2 text-sm">Check eligibility for
+    <select name="profile_id" class="rounded-md border border-slate-300 px-2 py-1">
+      {% for p in profiles %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+    </select>
+  </label>
+  {% elif profiles %}<input type="hidden" name="profile_id" value="{{ profiles[0].id }}">{% endif %}
   <button class="mt-5 rounded-lg bg-emerald-700 px-5 py-2 font-medium text-white hover:bg-emerald-800">Read with AI</button>
   <p class="mt-3 text-xs text-slate-500">Takes up to a minute. Scanned booklets (images only) are not supported yet.</p>
 </form>

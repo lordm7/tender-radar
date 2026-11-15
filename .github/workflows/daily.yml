@@ -1,0 +1,89 @@
+# Daily pipeline: fresh demo dates -> AI matching -> sample brief -> static demo -> (email digest).
+# Runs on GitHub's free runners; no server to pay for.
+#
+# Secrets (Settings > Secrets and variables > Actions), all optional:
+#   GEMINI_API_KEY            real AI scores; without it the run uses the fake AI and does not deploy
+#   TR_SMTP_HOST / TR_SMTP_USER / TR_SMTP_PASSWORD / TR_DIGEST_TO   the daily email to yourself
+# Variable (optional): TR_GEMINI_MODEL (default below)
+# The demo is deployed to GitHub Pages only when the repository is public (Pages is not free for
+# private repos), Pages is set to "GitHub Actions" under Settings > Pages, and the AI scored at
+# least one tender today (otherwise yesterday's deployment stays live).
+
+name: Daily
+
+on:
+  schedule:
+    - cron: "0 3 * * *"  # 03:00 UTC = 06:00 Riyadh
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.gate.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e .
+      - name: Run the daily pipeline
+        id: daily
+        env:
+          TR_DATABASE_URL: sqlite:///daily.db
+          TR_AI_PROVIDER: ${{ secrets.GEMINI_API_KEY != '' && 'gemini' || 'fake' }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TR_GEMINI_MODEL: ${{ vars.TR_GEMINI_MODEL || 'gemini-3.5-flash-lite' }}
+          TR_SMTP_HOST: ${{ secrets.TR_SMTP_HOST }}
+          TR_SMTP_USER: ${{ secrets.TR_SMTP_USER }}
+          TR_SMTP_PASSWORD: ${{ secrets.TR_SMTP_PASSWORD }}
+          TR_DIGEST_TO: ${{ secrets.TR_DIGEST_TO }}
+        run: python -m tender_radar daily --out site
+      - name: Keep the built demo as a downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site
+          retention-days: 7
+      - name: Decide whether to deploy
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HAS_KEY: ${{ secrets.GEMINI_API_KEY != '' }}
+          SCORED: ${{ steps.daily.outputs.scored_total }}
+        run: |
+          private=$(gh api "repos/${{ github.repository }}" --jq .private)
+          # A day when the AI was down scores nothing: keep yesterday's demo online instead.
+          if [ "$private" = "false" ] && [ "$HAS_KEY" = "true" ] && [ "${SCORED:-0}" -gt 0 ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Not deploying: private repo=$private, AI key set=$HAS_KEY, tenders scored=${SCORED:-0}"
+          fi
+      - name: Package for GitHub Pages
+        if: steps.gate.outputs.deploy == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

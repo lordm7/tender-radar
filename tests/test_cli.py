@@ -49,6 +49,37 @@ def test_export_command_writes_site(tmp_path, monkeypatch):
     assert main(["match", "--today", "2026-11-15"]) == 0
     assert main(["export", "--out", str(out), "--today", "2026-11-15"]) == 0
     assert (out / "index.html").exists()
+    assert (out / "c" / "najd-digital" / "index.html").exists()
+    assert (out / "c" / "al-bunyan" / "index.html").exists()
+
+
+def test_seed_loads_every_profile_and_match_runs_for_each(tmp_path, monkeypatch):
+    url = f"sqlite:///{(tmp_path / 'cli.db').as_posix()}"
+    monkeypatch.setenv("TR_DATABASE_URL", url)
+    assert main(["seed"]) == 0
+    assert main(["match", "--today", "2026-11-15", "--profile", "al-bunyan"]) == 0
+    with session_scope(make_engine(url)) as s:
+        assert len(list_matches(s, "al-bunyan")) == 30
+        assert list_matches(s, "najd-digital") == []
+    assert main(["match", "--today", "2026-11-15"]) == 0
+    with session_scope(make_engine(url)) as s:
+        assert len(list_matches(s, "najd-digital")) == 30
+
+
+def test_unknown_profile_is_a_clean_error(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("TR_DATABASE_URL", f"sqlite:///{(tmp_path / 'cli.db').as_posix()}")
+    assert main(["seed"]) == 0
+    assert main(["match", "--profile", "nobody"]) == 1
+    assert "No company profile 'nobody'" in capsys.readouterr().out
+
+
+def test_export_refuses_a_foreign_folder(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("TR_DATABASE_URL", f"sqlite:///{(tmp_path / 'cli.db').as_posix()}")
+    assert main(["seed"]) == 0
+    (tmp_path / "mine").mkdir()
+    (tmp_path / "mine" / "notes.txt").write_text("keep me", encoding="utf-8")
+    assert main(["export", "--out", str(tmp_path / "mine")]) == 1
+    assert "not created by an export" in capsys.readouterr().out
 
 
 def test_brief_command_ai_failure_returns_1(tmp_path, monkeypatch, capsys):
@@ -66,3 +97,47 @@ def test_brief_command_ai_failure_returns_1(tmp_path, monkeypatch, capsys):
     assert main(["seed"]) == 0
     assert main(["brief", str(pdf)]) == 1
     assert "AI could not read this booklet" in capsys.readouterr().out
+
+
+def test_import_command_reads_copied_text_and_saved_html(tmp_path, monkeypatch, capsys):
+    from pathlib import Path
+
+    from tender_radar.repository import get_tender
+
+    fixture = Path(__file__).parent / "fixtures" / "etimad_copy.txt"
+    url = f"sqlite:///{(tmp_path / 'cli.db').as_posix()}"
+    monkeypatch.setenv("TR_DATABASE_URL", url)
+    assert main(["seed"]) == 0
+    assert main(["import", str(fixture)]) == 0
+    out = capsys.readouterr().out
+    assert "3 new" in out and "1 skipped" in out and "no reference number" in out
+    html = tmp_path / "saved.html"
+    html.write_text("<div>" + fixture.read_text(encoding="utf-8").replace("\n", "</div><div>") + "</div>", encoding="utf-8")
+    assert main(["import", str(html)]) == 0
+    assert "3 unchanged" in capsys.readouterr().out
+    with session_scope(make_engine(url)) as s:
+        assert get_tender(s, "999000000001").source == "etimad-import"
+
+
+def test_import_missing_file_fails_cleanly(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("TR_DATABASE_URL", f"sqlite:///{(tmp_path / 'cli.db').as_posix()}")
+    assert main(["import", str(tmp_path / "nope.txt")]) == 1
+    assert "not found" in capsys.readouterr().out
+
+
+def test_rolling_seed_keeps_the_demo_fresh_and_rescores(tmp_path, monkeypatch, capsys):
+    from tender_radar.repository import get_tender
+
+    url = f"sqlite:///{(tmp_path / 'cli.db').as_posix()}"
+    monkeypatch.setenv("TR_DATABASE_URL", url)
+    assert main(["seed", "--rolling", "--today", "2026-11-15"]) == 0
+    assert main(["match", "--today", "2026-11-15"]) == 0
+    assert main(["seed", "--rolling", "--today", "2027-03-01"]) == 0  # 106 days later
+    assert "30 updated" in capsys.readouterr().out
+    with session_scope(make_engine(url)) as s:
+        assert str(get_tender(s, "000000001001").deadline) == "2027-03-26"
+        assert list_matches(s, "najd-digital") == []  # changed tenders get re-scored
+    assert main(["match", "--today", "2027-03-01"]) == 0
+    with session_scope(make_engine(url)) as s:
+        live = [m for m in list_matches(s, "najd-digital") if m.status != "filtered_out"]
+        assert 8 <= len(live) <= 14  # same split as on the anchor day

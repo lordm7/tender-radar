@@ -9,17 +9,18 @@ makes keyword matching ignore those spelling differences.
 from __future__ import annotations
 
 import re
+import unicodedata
 
-_DIACRITICS = re.compile(r"[ً-ْٰ]")  # tanween, harakat, shadda, sukun, dagger alef
+_DIACRITICS = re.compile("[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]")  # harakat, tanween, shadda, Quranic marks
 _TATWEEL = "ـ"
-_LETTER_MAP = str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا", "ة": "ه", "ى": "ي"})
-_DIGIT_MAP = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+_LETTER_MAP = str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا", "ة": "ه", "ى": "ي", "ٱ": "ا"})
+_DIGIT_MAP = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "0123456789" * 2)
 _SPACES = re.compile(r"\s+")
 
 
 def normalize(text: str) -> str:
     """Lowercase and unify Arabic spelling variants so comparisons are fair."""
-    text = text.lower()
+    text = unicodedata.normalize("NFKC", text).lower()  # joins split letters, unfolds ligatures
     text = _DIACRITICS.sub("", text)
     text = text.replace(_TATWEEL, "")
     text = text.translate(_LETTER_MAP).translate(_DIGIT_MAP)

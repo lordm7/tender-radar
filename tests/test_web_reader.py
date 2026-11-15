@@ -73,3 +73,31 @@ def test_sample_brief_route(db_settings):
 def test_reader_absent_in_read_only(db_settings):
     client = TestClient(create_app(db_settings, today=TODAY, read_only=True))
     assert client.get("/reader").status_code == 404
+
+
+def test_ai_failure_shows_friendly_502(db_settings):
+    from tender_radar.ai.provider import AIError
+
+    client = TestClient(create_app(db_settings, today=TODAY, provider=FakeProvider([AIError("503")])))
+    response = upload(client, pdf_bytes())
+    assert response.status_code == 502
+    assert "could not read this booklet right now" in response.text
+
+
+def test_empty_upload_is_rejected_without_ai(db_settings):
+    fake = FakeProvider()
+    client = TestClient(create_app(db_settings, today=TODAY, provider=fake))
+    response = upload(client, b"")
+    assert response.status_code == 400
+    assert "The file is empty" in response.text
+    assert fake.calls == []
+
+
+def test_upload_route_runs_in_a_worker_thread():
+    """A plain `def` route runs in FastAPI's thread pool, so PDF reading and the
+    AI call do not block other visitors (an `async def` route would)."""
+    import inspect
+
+    app = create_app(today=TODAY)
+    route = next(r for r in app.routes if getattr(r, "path", "") == "/reader" and "POST" in r.methods)
+    assert not inspect.iscoroutinefunction(route.endpoint)
