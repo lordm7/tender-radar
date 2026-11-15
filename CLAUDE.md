@@ -46,6 +46,11 @@ The owner designs the system and directs AI coding agents, and must be able to e
 ## Decisions
 - SQLite instead of PostgreSQL (swappable via `TR_DATABASE_URL`). Vanilla JS filters instead of HTMX, so the static demo behaves like the live app.
 - Free deployment: a GitHub Actions daily job plus a static demo on GitHub Pages. The full app (uploads, profile editing) runs locally.
+- **Data source (2026-11-15 recon):**
+  - Etimad's public tender pages show a CAPTCHA to automated clients. NEVER bypass or solve it.
+  - The Etimad developer API has no tender list, and its terms forbid storing the data.
+  - **Decision: human import + automation.** The user exports or saves the public list in a normal browser; everything after that (parse, dedupe, AI score, email, demo) is automatic.
+  - open.data.gov.sa and LCGPA are still unchecked (they need a browser).
 - AI model: `gemini-3.5-flash-lite` (free tier, ~5s per call). gemini-2.5-* is closed to new users, and gemini-3.8-flash is often overloaded (503). Every call has a 60s timeout. The key lives in the git-ignored `.env`. Never send real company documents through the free tier (Google may use free-tier data).
 - AI results are cached per (tender content hash, profile version). "unscored" results are retried on the next run.
 
@@ -58,8 +63,9 @@ The owner designs the system and directs AI coding agents, and must be able to e
 ## Pending
 - [x] Final whole-branch review of Plan 1: 4 fixes made (expired tenders, locked PDFs, AI quota backoff, profile save without AI); 64 tests pass
 - [ ] Deferred minors from the review (see `.superpowers/sdd/.../progress.md`): Arabic NFKC/Persian digits, word-boundary Latin keywords, blocking upload route, auth on write routes before public hosting, slug collisions, stale export files
-- [ ] The user: get a free Gemini API key, run `scripts/ai_smoke_test.py`, and pick `TR_GEMINI_MODEL`
-- [ ] The user: label the 20 tenders in `data/eval/labels.json`, then run `scripts/eval_matching.py` (bar: 80%)
+- [x] Plan 1 merged to main (PR #1, 2026-11-15). Gemini key set (`gemini-3.5-flash-lite`).
+- [x] Eval: 19/20 = 95% agreement with the user's labels. CAVEAT: the fake AI (always 70) also scores 95%, so the set mostly tests the rule filter. CV wording: "pipeline matched human bid decisions on 19/20", NOT "AI is 95% accurate".
+- [ ] Add ~6 tricky eval tenders that pass the rules but shouldn't be bid on (hardware-only supply, missing certification, out-of-scope consulting) so the eval really tests the AI
 - [ ] Plan 2: Etimad recon (terms, robots.txt, open data), the collector, the daily GitHub Actions job, the Pages deploy and the digest email
 - [ ] Plan 3: README with an architecture diagram and "what I did / what AI did", the 2-minute video, "Ask the booklet"
 - [ ] Parked: door-pricing BOQ → Quote assistant (waiting on the father's answers; the questions are in the design appendix)
