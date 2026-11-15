@@ -1,0 +1,105 @@
+{
+  "_note": "Fill each 'fit' with true or false: would Najd Digital Solutions want to bid on it? Your own judgement - this is the answer key the AI is measured against.",
+  "labels": [
+    {
+      "reference": "TR-2026-1001",
+      "title": "تطوير منصة رقمية لخدمات المستفيدين",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-1002",
+      "title": "خدمات الأمن السيبراني ومراقبة مركز العمليات الأمنية",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-1003",
+      "title": "ترحيل الأنظمة إلى الحوسبة السحابية",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-1004",
+      "title": "حل ذكاء اصطناعي لتحليل بلاغات المواطنين وتصنيفها",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-1005",
+      "title": "دعم فني وصيانة أجهزة الحاسب والطابعات",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-1006",
+      "title": "تطوير تطبيق جوال لحجز المواعيد",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-1007",
+      "title": "مشروع ٢٠٢٦ لتحديث البنية التحتية لتقنية المعلومات",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-1008",
+      "title": "توريد وتركيب نظام تخطيط موارد المؤسسة",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-1009",
+      "title": "خدمات الامن السيبرانى لانظمة الشبكات",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-1010",
+      "title": "تطوير بوابة إلكترونية للخدمات البلدية",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-1011",
+      "title": "خدمات استضافة سحابية للتطبيقات",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-1012",
+      "title": "منصة وطنية لتحليل البيانات وذكاء الأعمال",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-1013",
+      "title": "برمجيات إدارة الموارد البشرية",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-1014",
+      "title": "تطوير نظام إلكتروني لإدارة العقود",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-2001",
+      "title": "إنشاء مبنى إداري من ثلاثة طوابق",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-2002",
+      "title": "أعمال النظافة العامة للمرافق",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-2003",
+      "title": "تشغيل وصيانة محطات ضخ المياه",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-2004",
+      "title": "توريد وجبات غذائية للطلاب",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-2005",
+      "title": "توريد مستلزمات طبية استهلاكية",
+      "fit": null
+    },
+    {
+      "reference": "TR-2026-2006",
+      "title": "رصف وإنارة الطرق الداخلية",
+      "fit": null
+    }
+  ]
+}
