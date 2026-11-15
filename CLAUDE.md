@@ -46,6 +46,7 @@ The owner designs the system and directs AI coding agents, and must be able to e
 ## Decisions
 - SQLite instead of PostgreSQL (swappable via `TR_DATABASE_URL`). Vanilla JS filters instead of HTMX, so the static demo behaves like the live app.
 - Free deployment: a GitHub Actions daily job plus a static demo on GitHub Pages. The full app (uploads, profile editing) runs locally.
+- AI model: `gemini-3.5-flash-lite` (free tier, ~5s per call). gemini-2.5-* is closed to new users, and gemini-3.8-flash is often overloaded (503). Every call has a 60s timeout. The key lives in the git-ignored `.env`. Never send real company documents through the free tier (Google may use free-tier data).
 - AI results are cached per (tender content hash, profile version). "unscored" results are retried on the next run.
 
 ## Gotchas (Windows machine)

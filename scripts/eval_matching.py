@@ -25,6 +25,7 @@ from tender_radar.settings import Settings
 ROOT = Path(__file__).resolve().parents[1]
 FIT_THRESHOLD = 60
 REQUIRED_AGREEMENT = 0.80
+MAX_PASSES = 3
 
 
 def main() -> int:
@@ -40,18 +41,31 @@ def main() -> int:
     profile = load_profile(ROOT / "data/seed/profile_it_services.json")
     with session_scope(engine) as s:
         upsert_tenders(s, load_seed_tenders(ROOT / "data/seed/tenders.json"))
-        run_matching(s, profile, get_provider(Settings()), date.today())
+        provider = get_provider(Settings())
+        for _attempt in range(MAX_PASSES):  # AI outages (429/503) are retried, never counted as answers
+            if run_matching(s, profile, provider, date.today()).unscored == 0:
+                break
 
-    agree = 0
+    agree, outages = 0, []
     with session_scope(engine) as s:
         for x in labelled:
             m = get_match(s, x["reference"], profile.id)
+            if m is not None and m.status == "unscored":
+                outages.append(x["reference"])
+                print(f"SKIP {x['reference']} AI unavailable (not counted)")
+                continue
             predicted = m is not None and m.status == "scored" and (m.score or 0) >= FIT_THRESHOLD
             ok = predicted == x["fit"]
             agree += ok
             print(f"{'OK  ' if ok else 'MISS'} {x['reference']} you={x['fit']} ai={predicted} score={m.score if m else None}")
-    ratio = agree / len(labelled)
-    print(f"\nAgreement: {agree}/{len(labelled)} = {ratio:.0%} (bar: {REQUIRED_AGREEMENT:.0%})")
+    graded = len(labelled) - len(outages)
+    if graded == 0:
+        print("The AI was unavailable for every tender; try again later.")
+        return 1
+    ratio = agree / graded
+    print(f"\nAgreement: {agree}/{graded} = {ratio:.0%} (bar: {REQUIRED_AGREEMENT:.0%})")
+    if outages:
+        print(f"Not graded because the AI was unavailable: {', '.join(outages)}")
     return 0 if ratio >= REQUIRED_AGREEMENT else 1
 
 

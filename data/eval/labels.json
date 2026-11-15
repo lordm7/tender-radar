@@ -4,102 +4,108 @@
     {
       "reference": "TR-2026-1001",
       "title": "تطوير منصة رقمية لخدمات المستفيدين",
-      "fit": null
+      "fit": true
     },
     {
       "reference": "TR-2026-1002",
       "title": "خدمات الأمن السيبراني ومراقبة مركز العمليات الأمنية",
-      "fit": null
+      "fit": true
     },
     {
       "reference": "TR-2026-1003",
       "title": "ترحيل الأنظمة إلى الحوسبة السحابية",
-      "fit": null
+      "fit": true
     },
     {
       "reference": "TR-2026-1004",
       "title": "حل ذكاء اصطناعي لتحليل بلاغات المواطنين وتصنيفها",
-      "fit": null
+      "fit": true
     },
     {
       "reference": "TR-2026-1005",
       "title": "دعم فني وصيانة أجهزة الحاسب والطابعات",
-      "fit": null
+      "fit": false
     },
     {
       "reference": "TR-2026-1006",
       "title": "تطوير تطبيق جوال لحجز المواعيد",
-      "fit": null
+      "fit": true
     },
     {
       "reference": "TR-2026-1007",
       "title": "مشروع ٢٠٢٦ لتحديث البنية التحتية لتقنية المعلومات",
-      "fit": null
+      "fit": true
     },
     {
       "reference": "TR-2026-1008",
       "title": "توريد وتركيب نظام تخطيط موارد المؤسسة",
-      "fit": null
+      "fit": false,
+      "relabel_reason": "region not covered (Qassim)"
     },
     {
       "reference": "TR-2026-1009",
       "title": "خدمات الامن السيبرانى لانظمة الشبكات",
-      "fit": null
+      "fit": true
     },
     {
       "reference": "TR-2026-1010",
       "title": "تطوير بوابة إلكترونية للخدمات البلدية",
-      "fit": null
+      "fit": false,
+      "relabel_reason": "deadline passed"
     },
     {
       "reference": "TR-2026-1011",
       "title": "خدمات استضافة سحابية للتطبيقات",
-      "fit": null
+      "fit": false,
+      "relabel_reason": "deadline passed"
     },
     {
       "reference": "TR-2026-1012",
       "title": "منصة وطنية لتحليل البيانات وذكاء الأعمال",
-      "fit": null
+      "fit": false,
+      "relabel_reason": "value 45M above 20M limit"
     },
     {
       "reference": "TR-2026-1013",
       "title": "برمجيات إدارة الموارد البشرية",
-      "fit": null
+      "fit": false,
+      "relabel_reason": "excluded agency"
     },
     {
       "reference": "TR-2026-1014",
       "title": "تطوير نظام إلكتروني لإدارة العقود",
-      "fit": null
+      "fit": true
     },
     {
       "reference": "TR-2026-2001",
       "title": "إنشاء مبنى إداري من ثلاثة طوابق",
-      "fit": null
+      "fit": false
     },
     {
       "reference": "TR-2026-2002",
       "title": "أعمال النظافة العامة للمرافق",
-      "fit": null
+      "fit": false
     },
     {
       "reference": "TR-2026-2003",
       "title": "تشغيل وصيانة محطات ضخ المياه",
-      "fit": null
+      "fit": false
     },
     {
       "reference": "TR-2026-2004",
       "title": "توريد وجبات غذائية للطلاب",
-      "fit": null
+      "fit": false
     },
     {
       "reference": "TR-2026-2005",
       "title": "توريد مستلزمات طبية استهلاكية",
-      "fit": null
+      "fit": false
     },
     {
       "reference": "TR-2026-2006",
       "title": "رصف وإنارة الطرق الداخلية",
-      "fit": null
+      "fit": false
     }
-  ]
+  ],
+  "_relabel_note": "2026-11-15: first pass judged topic only ('is this IT?') and scored 14/20 = 70%. The labeller confirmed that, then re-labelled 5 tenders with the full question ('can THIS company bid?'). TR-2026-1005 was kept as the labeller's own judgement."
 }
