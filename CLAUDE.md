@@ -20,6 +20,7 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - **CI:** `.github/workflows/ci.yml` (pytest on Python 3.12)
 
 ## Key Paths
+- GitHub: https://github.com/lordm7/tender-radar (PRIVATE for now; make public once the README and real AI results are ready). Commits use the GitHub noreply email.
 - Design: `docs/superpowers/specs/2026-11-15-tender-radar-design.md`
 - Plans: `docs/superpowers/plans/` (Plan 1 = core, done; Plan 2 = live Etimad data + deploy; Plan 3 = showcase)
 - Package: `src/tender_radar/`

@@ -49,3 +49,9 @@ def db_settings(tmp_path, seed_tenders, profile):
         run_matching(s, profile, fake, date(2026, 11, 15))
     engine.dispose()
     return settings
+
+
+@pytest.fixture(autouse=True)
+def _never_use_real_ai(monkeypatch):
+    """Tests must never call a paid/real AI, even if a local .env selects Gemini."""
+    monkeypatch.setenv("TR_AI_PROVIDER", "fake")
