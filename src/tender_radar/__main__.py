@@ -15,7 +15,9 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from tender_radar.ai.provider import get_provider
+from pydantic import ValidationError
+
+from tender_radar.ai.provider import AIError, get_provider
 from tender_radar.db import init_db, make_engine, session_scope
 from tender_radar.matching.scorer import run_matching
 from tender_radar.models import load_profile, load_seed_tenders
@@ -67,7 +69,11 @@ def _cmd_brief(args: argparse.Namespace, settings: Settings) -> int:
         if profile is None:
             print("No company profile yet. Run: python -m tender_radar seed")
             return 1
-        brief = build_brief(pages, profile, get_provider(settings))
+        try:
+            brief = build_brief(pages, profile, get_provider(settings))
+        except (AIError, ValidationError) as exc:
+            print(f"The AI could not read this booklet right now ({exc}). Please try again later.")
+            return 1
         brief_id = save_brief(s, path.name, brief)
     engine.dispose()
     print(json.dumps(brief.model_dump(), ensure_ascii=False, indent=2))

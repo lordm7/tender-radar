@@ -28,3 +28,19 @@ def test_get_provider_unknown_raises():
 
 def test_get_provider_fake_default():
     assert isinstance(get_provider(Settings(ai_provider="fake")), FakeProvider)
+
+
+def test_gemini_client_has_timeout(monkeypatch):
+    from google import genai
+
+    from tender_radar.ai.gemini import REQUEST_TIMEOUT_MS, GeminiProvider
+
+    captured = {}
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(genai, "Client", FakeClient)
+    GeminiProvider(api_key="k", model="m")._get_client()
+    assert captured["http_options"].timeout == REQUEST_TIMEOUT_MS == 60_000

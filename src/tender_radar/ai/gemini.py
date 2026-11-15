@@ -14,6 +14,7 @@ from pydantic import BaseModel, ValidationError
 from tender_radar.ai.provider import AIError, RateLimited
 
 T = TypeVar("T", bound=BaseModel)
+REQUEST_TIMEOUT_MS = 60_000  # give up on one AI call after 60 seconds
 
 
 class GeminiProvider:
@@ -25,8 +26,12 @@ class GeminiProvider:
     def _get_client(self):
         if self._client is None:
             from google import genai
+            from google.genai import types
 
-            self._client = genai.Client(api_key=self._api_key)
+            # Without a time limit an overloaded model can hang the app forever.
+            self._client = genai.Client(
+                api_key=self._api_key, http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT_MS)
+            )
         return self._client
 
     def generate_json(self, prompt: str, schema: type[T]) -> T:
