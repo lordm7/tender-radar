@@ -14,6 +14,7 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - **Load demo data:** `python -m tender_radar seed [--rolling]` (loads every `data/seed/profile_*.json`)
 - **Run matching:** `python -m tender_radar match [--profile ID] [--today YYYY-MM-DD]`
 - **Read a booklet:** `python -m tender_radar brief data/seed/sample_booklet.pdf [--profile ID]`
+- **Ask the booklet:** `python -m tender_radar ask BOOKLET.pdf "question" ["question" ...]` (stored on that file's newest brief)
 - **Import real tenders (private):** `python -m tender_radar import FILE.txt|FILE.html`
 - **Export the static demo:** `python -m tender_radar export --out site` (seed tenders only)
 - **Email digest:** `python -m tender_radar digest [--dry-run]` (previews go to git-ignored `digests/`)
@@ -32,7 +33,7 @@ The owner designs the system and directs AI coding agents, and must be able to e
   - `db.py`, `repository.py`: storage
   - `matching/`: `rules.py` (free filter), `scorer.py` (AI scoring + cache)
   - `ai/`: the provider interface, FakeProvider and Gemini
-  - `reader/`: PDF → brief
+  - `reader/`: PDF → brief; `reader/ask.py` = Ask the booklet (keyword page retrieval + cited answer)
   - `web/`: FastAPI app and templates
   - `export/`: static site (clears only folders holding its `.tender-radar-export` marker)
   - `importer/`: Etimad copied text / saved HTML → tenders (source="etimad-import")
@@ -40,7 +41,7 @@ The owner designs the system and directs AI coding agents, and must be able to e
   - `digest.py`: daily email
   - `prompts/`: versioned prompt templates
 - Seed data (synthetic): `data/seed/` — tenders.json, profile_it_services.json, sample_booklet.pdf
-- Eval labels (the user fills them in): `data/eval/labels.json`; run with `scripts/eval_matching.py`
+- Eval labels (the user fills them in): `data/eval/labels.json`; run with `scripts/eval_matching.py`. Eval-only tricky tenders (pass the rules, still no-bid): `data/eval/tricky_tenders.json` (refs `00000000900x`, never in the demo)
 - Settings come from environment variables: `TR_DATABASE_URL`, `TR_AI_PROVIDER` (fake|gemini), `GEMINI_API_KEY`, `TR_GEMINI_MODEL` (see `.env.example`)
 
 ## Conventions
@@ -59,7 +60,8 @@ The owner designs the system and directs AI coding agents, and must be able to e
   - **Decision: human import + automation.** The user exports or saves the public list in a normal browser; everything after that (parse, dedupe, AI score, email, demo) is automatic.
   - open.data.gov.sa and LCGPA are still unchecked (they need a browser).
 - AI model: `gemini-3.5-flash-lite` (free tier, ~5s per call). gemini-2.5-* is closed to new users, and gemini-3.8-flash is often overloaded (503). Every call has a 60s timeout. The key lives in the git-ignored `.env`. Never send real company documents through the free tier (Google may use free-tier data).
-- AI results are cached per (tender content hash, profile version). "unscored" results are retried on the next run.
+- AI results are cached per (tender content hash, profile version + prompt fingerprint) — editing `score_tender.md` re-scores everything. "unscored" results are retried on the next run.
+- **Ask the booklet:** booklet pages are stored with the brief (`booklet_pages` table); a short booklet (≤20k chars) goes to the AI whole, a long one is ranked by Arabic-aware keyword IDF. Citations of pages the AI wasn't shown are dropped; a "found" answer with no valid citation is downgraded to not-found. The daily job asks 3 fixed sample questions (`SAMPLE_QUESTIONS` in `__main__.py`) so the static demo shows answers.
 - **Privacy rule (Plan 2):** only `source == "seed"` tenders appear in read-only views or the export (`is_public()` in web/app.py). Seed references start `00000000` so they never clash with real Etimad numbers.
 - **Routes:** each company lives under `/c/<id>/` (dashboard, `tenders/<ref>`, `profile`); `/` = company chooser (redirects when only one). Static export: `index.html`, `c/<id>/…`, `briefs/sample.html`.
 - The daily sample brief is always judged as `najd-digital` (the booklet is an IT tender).
@@ -78,10 +80,10 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - [ ] Deferred minors from the review (see `.superpowers/sdd/.../progress.md`): Arabic NFKC/Persian digits, word-boundary Latin keywords, blocking upload route, auth on write routes before public hosting, slug collisions, stale export files
 - [x] Plan 1 merged to main (PR #1, 2026-11-15). Gemini key set (`gemini-3.5-flash-lite`).
 - [x] Eval: 19/20 = 95% agreement with the user's labels. CAVEAT: the fake AI (always 70) also scores 95%, so the set mostly tests the rule filter. CV wording: "pipeline matched human bid decisions on 19/20", NOT "AI is 95% accurate".
-- [ ] Add ~6 tricky eval tenders that pass the rules but shouldn't be bid on (hardware-only supply, missing certification, out-of-scope consulting) so the eval really tests the AI
+- [x] 6 tricky eval tenders added (2026-11-16). Labels marked `"proposed": true` — the user must confirm them.
+- [x] Calibrated scoring prompt (2026-11-16, one Gemini run): 26/26, tricky 6/6, fit scores spread 62–92. Old prompt: 25/26, tricky 6/6, every fit = 90. Fake AI: 19/26 (tricky 0/6). CV wording: "on a 26-tender labelled set the pipeline matched human bid decisions 26/26, including 6 look-alike no-bid traps the keyword rules let through".
 - [x] Plan 2 built on branch feat/plan2 (2026-11-15): Etimad-shaped data, smarter rules, private importer, two companies, rolling demo, digest, daily workflow, README. 134 tests. Final review fixes done; deferred minors are in the Plan 2 ledger.
 - [ ] Redesign (PARKED 2026-11-15 by the user until everything else is done): spec `docs/superpowers/specs/2026-11-15-tender-radar-redesign-design.md` + mockups (incl. all pages in `.superpowers/brainstorm/.../content/all-pages.html`), branch `feat/redesign`. Needs user approval + LinkedIn URL, then writing-plans.
 - [ ] User decisions: make repo public (for Pages), Gmail app password for the digest, OK to store GEMINI_API_KEY as a GitHub secret, send the Etimad letter
-- [ ] Gemini flash-lite scores almost every plausible tender 85–90; calibrate with tricky eval cases
 - [ ] Plan 3: README with an architecture diagram and "what I did / what AI did", the 2-minute video, "Ask the booklet"
 - [ ] Parked: door-pricing BOQ → Quote assistant (waiting on the father's answers; the questions are in the design appendix)
