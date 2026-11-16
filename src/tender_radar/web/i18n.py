@@ -1,0 +1,464 @@
+"""Every word the UI shows, in English and Arabic, plus small formatting helpers.
+
+Pages are one language at a time (/en/… or /ar/…). Templates call t("key")
+instead of writing text, so a page can never mix languages by accident.
+VOCAB translates the short, fixed Etimad vocabulary (activities, regions,
+tender types, certificates); anything unknown is shown as the original and
+flagged, so the page can tag it "Arabic original".
+"""
+
+from __future__ import annotations
+
+from datetime import date
+
+LANGS = ("en", "ar")
+
+STRINGS: dict[str, dict[str, str]] = {
+    "en": {
+        # brand and navigation
+        "brand": "Tender Radar",
+        "nav_product": "Product",
+        "nav_how": "How it works",
+        "nav_about": "About",
+        "live_demo": "Live demo",
+        "matches": "Matches",
+        "booklet_reader": "Booklet reader",
+        "bidding_profile": "Bidding profile",
+        "sample_brief": "Sample brief",
+        "companies": "Companies",
+        "switch_company": "Switch company",
+        "language": "Language",
+        "synthetic_badge": "Synthetic demo data",
+        "arabic_original": "Arabic original",
+        "skip_to_content": "Skip to content",
+        # footer
+        "built_by": "Built by",
+        "author_role": "AI & Automation Engineer, Riyadh",
+        "github": "GitHub",
+        "linkedin": "LinkedIn",
+        "disclaimer": "Demo data is synthetic and shaped like public Etimad listings. Tender Radar is not affiliated with Etimad.",
+        "precomputed": "Scores precomputed on {date}.",
+        # home
+        "home_title": "Tender intelligence for Saudi B2B",
+        "eyebrow": "Tender intelligence for Saudi B2B",
+        "hero_title": "Know which government tenders are worth bidding on.",
+        "hero_text": "Tender Radar screens Etimad tenders daily, scores each one against your company profile with AI, and turns tender booklets into a one-page go / no-go brief you can question.",
+        "open_demo": "Open live demo",
+        "view_source": "View source",
+        "hero_tags": "Arabic & English · Free to run · Open source",
+        "stat_screened": "tenders screened in the demo",
+        "stat_filtered": "filtered by rules, without AI cost",
+        "stat_agreement": "agreement with human bid calls on a labelled test set",
+        "stat_cost": "monthly running cost",
+        "zero_cost": "0 SAR",
+        "how_title": "How it works",
+        "step_screen": "Screen",
+        "step_screen_text": "Daily intake of public tenders. Rule filters on activity, value, region and deadline remove the obvious misses at no cost.",
+        "step_score": "Score",
+        "step_score_text": "AI rates each remaining tender 0–100 against your bidding profile, with short reasons in Arabic and English.",
+        "step_decide": "Decide",
+        "step_decide_text": "Booklet PDFs become a one-page brief with key dates, eligibility, risks and a go / no-go checklist. Ask it questions; answers cite the page.",
+        "about_title": "About",
+        "about_text": "A portfolio project: a working AI and automation pipeline for Saudi B2B bid teams, built in Python with FastAPI and Gemini, and run for free on GitHub Actions and Pages.",
+        "preview_label": "Product preview",
+        # companies
+        "choose_company": "Choose a company",
+        "choose_company_sub": "The same tenders, matched against each company's own bidding profile.",
+        "best_fit": "best fit",
+        # dashboard
+        "matches_on": "Matches · {date}",
+        "worth_a_look": "worth a look",
+        "filtered_by_rules": "filtered by rules",
+        "closes_this_week": "closes this week",
+        "regions": "regions",
+        "fit_radar": "Fit radar",
+        "radar_hint": "Closer to the centre = better fit. Gold = closes within 7 days.",
+        "radar_label": "Radar of matching tenders",
+        "selected_tender": "Selected tender",
+        "closes": "Closes",
+        "booklet": "Booklet",
+        "inquiries": "Inquiries",
+        "until": "until {date}",
+        "open_tender": "Open tender",
+        "brief_booklet": "Brief the booklet",
+        "all_matches": "All matches",
+        "f_score": "Minimum score",
+        "f_any_score": "Any score",
+        "f_score_50": "Score 50+",
+        "f_score_80": "Score 80+",
+        "f_agency": "Agency",
+        "f_any_agency": "Any agency",
+        "f_deadline": "Deadline",
+        "f_any_deadline": "Any deadline",
+        "f_days_14": "Within 14 days",
+        "f_days_30": "Within 30 days",
+        "shown_of": "{shown} of {total} shown",
+        "no_matches": "No matching tenders yet.",
+        "n_filtered": "{n} filtered by rules",
+        "filtered_hint": "rejected by free rules before any AI call",
+        "not_scored": "Not scored",
+        "ai_retry": "The AI was unavailable; it will retry on the next run.",
+        "fit": "fit",
+        # tender
+        "back_to_matches": "All matches",
+        "reference": "Reference",
+        "tender_type": "Type",
+        "ai_fit_for": "AI fit score for {company}",
+        "why": "Why",
+        "agency": "Agency",
+        "activity": "Activity",
+        "region": "Region",
+        "from_agency": "from the agency name",
+        "deadline": "Deadline",
+        "inquiries_until": "Inquiries until",
+        "booklet_price": "Booklet price",
+        "free": "Free",
+        "estimated_value": "Estimated value",
+        "published": "Published",
+        "view_on_etimad": "View on Etimad",
+        "description": "Description",
+        "status_filtered": "Filtered out by the free rules",
+        # brief
+        "brief_for": "Bid brief for",
+        "synthetic_booklet": "Synthetic sample booklet",
+        "truncated": "Long booklet: only the first part was analysed.",
+        "scope": "Scope",
+        "go_no_go": "Go / no-go checklist",
+        "meets": "Meets",
+        "gap": "Gap",
+        "check": "Check",
+        "key_dates": "Key dates",
+        "deliverables": "Deliverables",
+        "eligibility": "Eligibility",
+        "required_documents": "Required documents",
+        "evaluation": "Evaluation",
+        "risks": "Risks",
+        "ask_title": "Ask the booklet",
+        "ask_hint": "Answers come only from the booklet text and cite the page they used.",
+        "ask_placeholder": "e.g. What is the late-delivery penalty?",
+        "ask_label": "Your question",
+        "ask_button": "Ask",
+        "not_stated": "Not stated in the booklet",
+        "page_n": "p. {n}",
+        "ask_empty": "Please type a question.",
+        "ask_failed": "The AI could not answer right now. Please try again later.",
+        "no_brief_text": "Upload the booklet again to ask questions about it.",
+        # reader
+        "reader_title": "Read a tender booklet",
+        "reader_sub": "Upload the terms and specifications booklet and get a one-page brief with a go / no-go checklist.",
+        "pdf_hint": "PDF booklet (Arabic or English), up to {mb} MB",
+        "choose_file": "Booklet file",
+        "check_for": "Check eligibility for",
+        "read_with_ai": "Read with AI",
+        "reader_note": "Takes up to a minute. Scanned booklets (images only) are not supported yet.",
+        "err_empty_file": "The file is empty.",
+        "err_too_big": "The file is larger than {mb} MB.",
+        "err_reader_ai": "The AI could not read this booklet right now. Please try again later.",
+        "err_pdf_open": "This file could not be opened as a PDF.",
+        "err_pdf_locked": "This PDF is password-protected. Please upload an unlocked copy.",
+        "err_pdf_empty": "The PDF has no pages.",
+        "err_pdf_damaged": "This PDF is damaged and its text could not be read.",
+        "err_pdf_scanned": "This PDF looks scanned (no text layer). OCR is not supported yet.",
+        # profile
+        "profile_sub": "What the company sells and where it can bid. Saving re-runs matching; only tenders that pass the free rules are sent to the AI.",
+        "company_name": "Company name (English)",
+        "company_name_ar": "Company name (Arabic)",
+        "activities": "Activities",
+        "activities_hint": "Etimad activity names, one per line",
+        "keywords": "Keywords",
+        "keywords_hint": "Arabic or English, one per line. Kept as written: Arabic tenders need Arabic keywords.",
+        "certifications": "Certifications",
+        "one_per_line": "One per line",
+        "regions_covered": "Regions covered",
+        "regions_hint": "Leave empty for all regions",
+        "excluded_agencies": "Excluded agencies",
+        "min_value": "Minimum contract value (SAR)",
+        "max_value": "Maximum contract value (SAR)",
+        "save_rematch": "Save and re-match",
+        "err_numbers": "Values must be numbers.",
+        "err_value_range": "The minimum value must not be greater than the maximum value.",
+        "err_name": "Please enter a company name.",
+        "saved_no_ai": "Profile saved, but AI scoring is not configured.",
+        "not_found": "Page not found",
+    },
+    "ar": {
+        "brand": "رادار المنافسات",
+        "nav_product": "المنتج",
+        "nav_how": "طريقة العمل",
+        "nav_about": "نبذة",
+        "live_demo": "العرض الحي",
+        "matches": "المطابقات",
+        "booklet_reader": "قارئ الكراسات",
+        "bidding_profile": "ملف المنافسة",
+        "sample_brief": "ملخص نموذجي",
+        "companies": "الشركات",
+        "switch_company": "تغيير الشركة",
+        "language": "اللغة",
+        "synthetic_badge": "بيانات تجريبية",
+        "arabic_original": "النص العربي الأصلي",
+        "skip_to_content": "تخطَّ إلى المحتوى",
+        "built_by": "من تطوير",
+        "author_role": "مهندس ذكاء اصطناعي وأتمتة، الرياض",
+        "github": "GitHub",
+        "linkedin": "LinkedIn",
+        "disclaimer": "بيانات العرض تجريبية ومصممة على شكل إعلانات منصة اعتماد العامة. رادار المنافسات غير تابع لمنصة اعتماد.",
+        "precomputed": "حُسبت الدرجات مسبقًا بتاريخ {date}.",
+        "home_title": "ذكاء المنافسات لقطاع الأعمال السعودي",
+        "eyebrow": "ذكاء المنافسات لقطاع الأعمال السعودي",
+        "hero_title": "اعرف أي المنافسات الحكومية تستحق التقديم.",
+        "hero_text": "يفحص رادار المنافسات منافسات منصة اعتماد يوميًا، ويقيّم كل منافسة مقابل ملف شركتك بالذكاء الاصطناعي، ويحوّل كراسات الشروط إلى ملخص من صفحة واحدة لقرار المشاركة يمكنك سؤاله.",
+        "open_demo": "افتح العرض الحي",
+        "view_source": "الشيفرة المصدرية",
+        "hero_tags": "عربي وإنجليزي · تشغيل مجاني · مفتوح المصدر",
+        "stat_screened": "منافسة مفحوصة في العرض",
+        "stat_filtered": "استُبعدت بالقواعد دون تكلفة ذكاء اصطناعي",
+        "stat_agreement": "اتفاق مع قرارات المشاركة البشرية في مجموعة اختبار مصنّفة",
+        "stat_cost": "تكلفة التشغيل الشهرية",
+        "zero_cost": "0 ريال",
+        "how_title": "طريقة العمل",
+        "step_screen": "فرز",
+        "step_screen_text": "استقبال يومي للمنافسات العامة. قواعد على النشاط والقيمة والمنطقة والموعد تستبعد غير المناسب دون تكلفة.",
+        "step_score": "تقييم",
+        "step_score_text": "يقيّم الذكاء الاصطناعي كل منافسة متبقية من 0 إلى 100 مقابل ملف المنافسة، مع أسباب مختصرة بالعربية والإنجليزية.",
+        "step_decide": "قرار",
+        "step_decide_text": "تتحول كراسات الشروط إلى ملخص من صفحة واحدة بالتواريخ وشروط التأهيل والمخاطر وقائمة قرار المشاركة. اسألها، وتأتي الإجابة مع رقم الصفحة.",
+        "about_title": "نبذة",
+        "about_text": "مشروع لمعرض الأعمال: منظومة ذكاء اصطناعي وأتمتة عاملة لفرق المنافسات في الشركات السعودية، مبنية بلغة بايثون ونموذج ذكاء اصطناعي مجاني، وتعمل دون تكلفة على GitHub.",
+        "preview_label": "معاينة المنتج",
+        "choose_company": "اختر شركة",
+        "choose_company_sub": "المنافسات نفسها، مطابَقة مع ملف المنافسة الخاص بكل شركة.",
+        "best_fit": "أفضل تطابق",
+        "matches_on": "المطابقات · {date}",
+        "worth_a_look": "تستحق النظر",
+        "filtered_by_rules": "استُبعدت بالقواعد",
+        "closes_this_week": "تُغلق هذا الأسبوع",
+        "regions": "مناطق",
+        "fit_radar": "رادار التطابق",
+        "radar_hint": "الأقرب إلى المركز = تطابق أفضل. الذهبي = يُغلق خلال 7 أيام.",
+        "radar_label": "رادار المنافسات المطابقة",
+        "selected_tender": "المنافسة المحددة",
+        "closes": "الإغلاق",
+        "booklet": "الكراسة",
+        "inquiries": "الاستفسارات",
+        "until": "حتى {date}",
+        "open_tender": "افتح المنافسة",
+        "brief_booklet": "لخّص الكراسة",
+        "all_matches": "كل المطابقات",
+        "f_score": "أدنى درجة",
+        "f_any_score": "أي درجة",
+        "f_score_50": "50 فأعلى",
+        "f_score_80": "80 فأعلى",
+        "f_agency": "الجهة",
+        "f_any_agency": "أي جهة",
+        "f_deadline": "الموعد",
+        "f_any_deadline": "أي موعد",
+        "f_days_14": "خلال 14 يومًا",
+        "f_days_30": "خلال 30 يومًا",
+        "shown_of": "يظهر {shown} من {total}",
+        "no_matches": "لا توجد منافسات مطابقة بعد.",
+        "n_filtered": "{n} استُبعدت بالقواعد",
+        "filtered_hint": "رفضتها القواعد المجانية قبل أي استدعاء للذكاء الاصطناعي",
+        "not_scored": "غير مقيّمة",
+        "ai_retry": "تعذّر الوصول إلى الذكاء الاصطناعي؛ ستُعاد المحاولة في التشغيل القادم.",
+        "fit": "تطابق",
+        "back_to_matches": "كل المطابقات",
+        "reference": "الرقم المرجعي",
+        "tender_type": "النوع",
+        "ai_fit_for": "درجة التطابق لشركة {company}",
+        "why": "لماذا",
+        "agency": "الجهة",
+        "activity": "النشاط",
+        "region": "المنطقة",
+        "from_agency": "مستنتجة من اسم الجهة",
+        "deadline": "آخر موعد",
+        "inquiries_until": "الاستفسارات حتى",
+        "booklet_price": "سعر الكراسة",
+        "free": "مجانًا",
+        "estimated_value": "القيمة التقديرية",
+        "published": "تاريخ النشر",
+        "view_on_etimad": "اعرضها في منصة اعتماد",
+        "description": "الوصف",
+        "status_filtered": "استبعدتها القواعد المجانية",
+        "brief_for": "ملخص المنافسة للملف",
+        "synthetic_booklet": "كراسة نموذجية تجريبية",
+        "truncated": "كراسة طويلة: حُلّل الجزء الأول منها فقط.",
+        "scope": "نطاق العمل",
+        "go_no_go": "قائمة قرار المشاركة",
+        "meets": "مستوفى",
+        "gap": "فجوة",
+        "check": "يحتاج تحقق",
+        "key_dates": "التواريخ المهمة",
+        "deliverables": "المخرجات",
+        "eligibility": "شروط التأهيل",
+        "required_documents": "المستندات المطلوبة",
+        "evaluation": "معايير التقييم",
+        "risks": "المخاطر",
+        "ask_title": "اسأل الكراسة",
+        "ask_hint": "الإجابات من نص الكراسة فقط، مع رقم الصفحة المستخدمة.",
+        "ask_placeholder": "مثال: ما هي غرامة التأخير؟",
+        "ask_label": "سؤالك",
+        "ask_button": "اسأل",
+        "not_stated": "غير مذكور في الكراسة",
+        "page_n": "ص {n}",
+        "ask_empty": "اكتب سؤالًا من فضلك.",
+        "ask_failed": "تعذّر على الذكاء الاصطناعي الإجابة الآن. حاول لاحقًا.",
+        "no_brief_text": "ارفع الكراسة مرة أخرى لتتمكن من سؤالها.",
+        "reader_title": "اقرأ كراسة منافسة",
+        "reader_sub": "ارفع كراسة الشروط والمواصفات واحصل على ملخص من صفحة واحدة وقائمة قرار المشاركة.",
+        "pdf_hint": "كراسة بصيغة PDF (عربية أو إنجليزية)، حتى {mb} ميجابايت",
+        "choose_file": "ملف الكراسة",
+        "check_for": "تحقق من الأهلية لشركة",
+        "read_with_ai": "اقرأ بالذكاء الاصطناعي",
+        "reader_note": "يستغرق حتى دقيقة. الكراسات الممسوحة ضوئيًا (صور فقط) غير مدعومة حاليًا.",
+        "err_empty_file": "الملف فارغ.",
+        "err_too_big": "حجم الملف أكبر من {mb} ميجابايت.",
+        "err_reader_ai": "تعذّر على الذكاء الاصطناعي قراءة الكراسة الآن. حاول لاحقًا.",
+        "err_pdf_open": "تعذّر فتح هذا الملف بصيغة PDF.",
+        "err_pdf_locked": "هذا الملف محمي بكلمة مرور. ارفع نسخة غير مقفلة.",
+        "err_pdf_empty": "ملف PDF لا يحتوي على صفحات.",
+        "err_pdf_damaged": "الملف تالف وتعذّرت قراءة نصه.",
+        "err_pdf_scanned": "يبدو أن الملف ممسوح ضوئيًا (بلا طبقة نص). التعرّف الضوئي غير مدعوم حاليًا.",
+        "profile_sub": "ما تبيعه الشركة وأين يمكنها التقديم. الحفظ يعيد المطابقة، ولا يُرسل إلى الذكاء الاصطناعي إلا ما تجاوز القواعد المجانية.",
+        "company_name": "اسم الشركة (بالإنجليزية)",
+        "company_name_ar": "اسم الشركة (بالعربية)",
+        "activities": "الأنشطة",
+        "activities_hint": "أسماء أنشطة منصة اعتماد، نشاط في كل سطر",
+        "keywords": "الكلمات المفتاحية",
+        "keywords_hint": "بالعربية أو الإنجليزية، كلمة في كل سطر. تبقى كما كُتبت: المنافسات العربية تحتاج كلمات عربية.",
+        "certifications": "الشهادات",
+        "one_per_line": "عنصر في كل سطر",
+        "regions_covered": "المناطق المغطاة",
+        "regions_hint": "اتركها فارغة لكل المناطق",
+        "excluded_agencies": "جهات مستبعدة",
+        "min_value": "أدنى قيمة للعقد (ريال)",
+        "max_value": "أعلى قيمة للعقد (ريال)",
+        "save_rematch": "احفظ وأعد المطابقة",
+        "err_numbers": "يجب أن تكون القيم أرقامًا.",
+        "err_value_range": "يجب ألا تكون القيمة الدنيا أكبر من القيمة العليا.",
+        "err_name": "أدخل اسم الشركة من فضلك.",
+        "saved_no_ai": "حُفظ الملف، لكن تقييم الذكاء الاصطناعي غير مُعدّ.",
+        "not_found": "الصفحة غير موجودة",
+    },
+}
+
+# The fixed Etimad vocabulary: Arabic value -> English. Arabic pages show the value as is.
+VOCAB: dict[str, str] = {
+    # activities
+    "تقنية المعلومات": "Information technology",
+    "الاتصالات": "Telecommunications",
+    "المقاولات": "Contracting",
+    "المقاولات العامة": "General contracting",
+    "التشغيل والصيانة والنظافة": "Operation, maintenance and cleaning",
+    "الإعاشة": "Catering",
+    "التجهيزات الطبية": "Medical supplies",
+    "التجهيزات العلمية": "Scientific equipment",
+    "التوريدات العامة": "General supplies",
+    "الحراسات": "Security guarding",
+    "الزراعة والتشجير": "Landscaping and planting",
+    "النقل": "Transport",
+    "تنظيم الفعاليات": "Event management",
+    "الاستشارات": "Consulting",
+    "الاستشارات القانونية": "Legal consulting",
+    "توفير القوى العاملة": "Manpower supply",
+    # tender types
+    "منافسة عامة": "Public tender",
+    "منافسة محدودة": "Limited tender",
+    "شراء مباشر": "Direct purchase",
+    "منافسة على مرحلتين": "Two-stage tender",
+    # regions (the 13 administrative regions)
+    "الرياض": "Riyadh",
+    "مكة المكرمة": "Makkah",
+    "المدينة المنورة": "Madinah",
+    "القصيم": "Qassim",
+    "المنطقة الشرقية": "Eastern Province",
+    "عسير": "Asir",
+    "تبوك": "Tabuk",
+    "حائل": "Hail",
+    "الحدود الشمالية": "Northern Borders",
+    "جازان": "Jazan",
+    "نجران": "Najran",
+    "الباحة": "Al Bahah",
+    "الجوف": "Al Jawf",
+    "منطقة الرياض": "Riyadh Region",
+    "منطقة مكة المكرمة": "Makkah Region",
+    # certificates
+    "شهادة الزكاة والضريبة": "Zakat and tax certificate",
+    "شهادة السعودة": "Saudization certificate",
+    "تصنيف المقاولين - الدرجة الثالثة": "Contractor classification, grade 3",
+}
+
+_MONTHS = {
+    "en": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    "ar": ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
+}
+
+_RULE_REASONS = {
+    "deadline passed": ("Deadline passed", "انتهى موعد التقديم"),
+    "value outside range": ("Value outside the company's range", "القيمة خارج نطاق الشركة"),
+    "region not covered": ("Region not covered", "المنطقة غير مغطاة"),
+    "no keyword match": ("No keyword match", "لا تطابق في الكلمات المفتاحية"),
+    "excluded agency": ("Excluded agency", "جهة مستبعدة"),
+}
+
+
+def other(lang: str) -> str:
+    return "ar" if lang == "en" else "en"
+
+
+def t(lang: str, key: str, **fmt: object) -> str:
+    """The UI text for `key` in `lang`. A missing key is a bug, so it raises KeyError."""
+    text = STRINGS[lang][key]
+    return text.format(**fmt) if fmt else text
+
+
+def vocab(lang: str, value: str) -> tuple[str, bool]:
+    """(text to show, is_original). Latin values (e.g. "ISO 27001") are shown as they are."""
+    if lang == "ar" or value.isascii():
+        return value, False
+    if value in VOCAB:
+        return VOCAB[value], False
+    return value, True
+
+
+def days_label(lang: str, days: int | None) -> str:
+    if lang == "en":
+        if days is None:
+            return "No deadline stated"
+        if days < 0:
+            return "Closed"
+        if days == 0:
+            return "Closes today"
+        return "1 day left" if days == 1 else f"{days} days left"
+    if days is None:
+        return "لا يوجد موعد محدد"
+    if days < 0:
+        return "مغلقة"
+    if days == 0:
+        return "تُغلق اليوم"
+    if days == 1:
+        return "يوم واحد متبقٍ"
+    if days == 2:
+        return "يومان متبقيان"
+    if days <= 10:
+        return f"{days} أيام متبقية"
+    return f"{days} يومًا متبقيًا"
+
+
+def fmt_date(lang: str, d: date | None) -> str:
+    if d is None:
+        return "—"
+    return f"{d.day} {_MONTHS[lang][d.month - 1]} {d.year}"
+
+
+def fmt_sar(lang: str, value: float) -> str:
+    return f"{value:,.0f} " + ("SAR" if lang == "en" else "ريال")
+
+
+def rule_reason(lang: str, reason: str) -> str:
+    """Translate a rule-filter reason ("deadline passed", "matched: X")."""
+    index = 0 if lang == "en" else 1
+    if reason in _RULE_REASONS:
+        return _RULE_REASONS[reason][index]
+    if reason.startswith("matched: "):
+        return ("Matched: ", "تطابق: ")[index] + reason.removeprefix("matched: ")
+    return reason
