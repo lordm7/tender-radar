@@ -45,39 +45,42 @@ def test_each_company_gets_its_own_matches(two_companies):
     assert "000000002006" not in build  # roads in Makkah: region not covered
 
 
-def test_home_lists_companies_when_several(two_companies):
-    html = TestClient(create_app(two_companies, today=TODAY)).get("/").text
+def test_chooser_lists_companies_when_several(two_companies):
+    client = TestClient(create_app(two_companies, today=TODAY))
+    html = client.get("/en/companies").text
     assert "Najd Digital Solutions (synthetic)" in html
     assert "Al-Bunyan Contracting &amp; Maintenance (synthetic)" in html
-    assert f'href="/c/{BUILD}/"' in html
+    assert f'href="/en/c/{BUILD}/"' in html
+    assert "نجد للحلول الرقمية" in client.get("/ar/companies").text
+    assert 'href="/en/companies"' in client.get("/en/").text  # "Live demo" opens the chooser
 
 
-def test_home_goes_straight_to_the_only_company(db_settings):
-    response = TestClient(create_app(db_settings, today=TODAY)).get("/", follow_redirects=False)
+def test_chooser_goes_straight_to_the_only_company(db_settings):
+    response = TestClient(create_app(db_settings, today=TODAY)).get("/en/companies", follow_redirects=False)
     assert response.status_code == 307
-    assert response.headers["location"] == f"/c/{IT}/"
+    assert response.headers["location"] == f"/en/c/{IT}/"
 
 
 def test_unknown_company_404(db_settings):
-    assert TestClient(create_app(db_settings, today=TODAY)).get("/c/nobody/").status_code == 404
+    assert TestClient(create_app(db_settings, today=TODAY)).get("/en/c/nobody/").status_code == 404
 
 
 def test_company_dashboard_links_stay_inside_the_company(two_companies):
-    html = TestClient(create_app(two_companies, today=TODAY)).get(f"/c/{BUILD}/").text
-    assert f'href="/c/{BUILD}/tenders/000000002001"' in html
-    assert f'href="/c/{BUILD}/profile"' in html
+    html = TestClient(create_app(two_companies, today=TODAY)).get(f"/en/c/{BUILD}/").text
+    assert f'href="/en/c/{BUILD}/tenders/000000002001"' in html
+    assert f'href="/en/c/{BUILD}/profile"' in html
 
 
 def test_read_only_server_uses_real_routes_not_html_files(two_companies):
     client = TestClient(create_app(two_companies, today=TODAY, read_only=True))
-    html = client.get(f"/c/{IT}/").text
-    assert f'href="/c/{IT}/tenders/000000001004"' in html
+    html = client.get(f"/en/c/{IT}/").text
+    assert f'href="/en/c/{IT}/tenders/000000001004"' in html
     assert ".html" not in html
-    assert "<form" not in client.get(f"/c/{IT}/tenders/000000001004").text
+    assert "<form" not in client.get(f"/en/c/{IT}/tenders/000000001004").text
 
 
 def test_reader_lets_you_pick_the_company(two_companies):
-    html = TestClient(create_app(two_companies, today=TODAY)).get("/reader").text
+    html = TestClient(create_app(two_companies, today=TODAY)).get("/en/reader").text
     assert f'<option value="{BUILD}"' in html
 
 
@@ -92,21 +95,22 @@ def export(settings, out):
 def test_export_has_a_chooser_and_one_folder_per_company(two_companies, tmp_path):
     out = tmp_path / "site"
     export(two_companies, out)
-    chooser = (out / "index.html").read_text(encoding="utf-8")
-    assert f'href="c/{IT}/index.html"' in chooser and f'href="c/{BUILD}/index.html"' in chooser
-    build = (out / "c" / BUILD / "index.html").read_text(encoding="utf-8")
-    assert 'href="tenders/000000002001.html"' not in build  # links are relative to the site root…
-    assert 'href="../../c/al-bunyan/tenders/000000002001.html"' in build  # …via ../../
-    assert (out / "c" / BUILD / "tenders" / "000000002001.html").exists()
-    assert 'src="../../static/app.js"' in build
-    detail = (out / "c" / BUILD / "tenders" / "000000002001.html").read_text(encoding="utf-8")
-    assert 'href="../../../c/al-bunyan/index.html"' in detail
+    chooser = (out / "en" / "companies.html").read_text(encoding="utf-8")
+    assert f'href="../en/c/{IT}/index.html"' in chooser and f'href="../en/c/{BUILD}/index.html"' in chooser
+    assert 'href="../en/companies.html"' in (out / "en" / "index.html").read_text(encoding="utf-8")  # live demo
+    build = (out / "en" / "c" / BUILD / "index.html").read_text(encoding="utf-8")
+    assert 'href="../../../en/c/al-bunyan/tenders/000000002001.html"' in build  # relative to the site root
+    assert (out / "en" / "c" / BUILD / "tenders" / "000000002001.html").exists()
+    assert (out / "ar" / "c" / BUILD / "tenders" / "000000002001.html").exists()
+    assert 'src="../../../static/app.js"' in build
+    detail = (out / "en" / "c" / BUILD / "tenders" / "000000002001.html").read_text(encoding="utf-8")
+    assert 'href="../../../../en/c/al-bunyan/index.html"' in detail
 
 
 def test_export_removes_stale_files(two_companies, tmp_path):
     out = tmp_path / "site"
     export(two_companies, out)
-    stale = out / "c" / IT / "tenders" / "old-tender.html"
+    stale = out / "en" / "c" / IT / "tenders" / "old-tender.html"
     stale.write_text("old", encoding="utf-8")
     export(two_companies, out)
     assert not stale.exists()

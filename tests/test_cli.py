@@ -49,8 +49,8 @@ def test_export_command_writes_site(tmp_path, monkeypatch):
     assert main(["match", "--today", "2026-11-15"]) == 0
     assert main(["export", "--out", str(out), "--today", "2026-11-15"]) == 0
     assert (out / "index.html").exists()
-    assert (out / "c" / "najd-digital" / "index.html").exists()
-    assert (out / "c" / "al-bunyan" / "index.html").exists()
+    assert (out / "en" / "c" / "najd-digital" / "index.html").exists()
+    assert (out / "ar" / "c" / "al-bunyan" / "index.html").exists()
 
 
 def test_seed_loads_every_profile_and_match_runs_for_each(tmp_path, monkeypatch):

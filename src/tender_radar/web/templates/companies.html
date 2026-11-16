@@ -1,19 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Companies · Tender Radar{% endblock %}
+{% block title %}{{ t("companies") }}{% endblock %}
 {% block content %}
-<section class="mb-6">
-  <h1 class="text-2xl font-semibold">Choose a company</h1>
-  <p class="text-sm text-slate-500 mt-1">The same tenders, matched against each company's own profile · as of {{ today.isoformat() }}</p>
-</section>
-<section class="grid gap-4 sm:grid-cols-2">
-  {% for c in cards %}
-  <a href="{{ links.dashboard_of(c.profile.id) }}"
-     class="block rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 hover:ring-emerald-500 transition">
-    <h2 class="text-lg font-semibold">{{ c.profile.name }}</h2>
-    <p dir="auto" class="ar mt-1 text-sm text-slate-500">{{ c.profile.activities|join(" · ") }}</p>
-    <p class="mt-4 text-sm"><span class="text-2xl font-bold text-emerald-700">{{ c.count }}</span> tenders worth a look
-      {% if c.best is not none %}· best fit <span class="font-semibold">{{ c.best }}</span>{% endif %}</p>
-  </a>
-  {% endfor %}
-</section>
+<div class="wrap stack">
+  <div>
+    <div class="lbl">{{ fmt_date(today) }}</div>
+    <h1 style="margin-top:3px">{{ t("choose_company") }}</h1>
+    <p class="muted" style="margin-top:4px">{{ t("choose_company_sub") }}</p>
+  </div>
+  <div class="cards">
+    {% for c in cards %}
+    <a class="panel card" href="{{ links.dashboard_of(c.profile.id) }}">
+      <h2>{{ orig(c.name[0], c.name[1], tag=False) }}</h2>
+      <p class="muted small" style="margin-top:4px">{{ c.activities|join(" · ") }}</p>
+      <p style="margin-top:14px"><span class="big">{{ c.count }}</span> {{ t("worth_a_look") }}
+        {% if c.best is not none %}<span class="muted">· {{ t("best_fit") }} <b style="color:var(--head)">{{ c.best }}</b></span>{% endif %}</p>
+    </a>
+    {% endfor %}
+  </div>
+</div>
 {% endblock %}

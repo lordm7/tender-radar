@@ -22,27 +22,28 @@ def result_refs(html: str) -> list[str]:
 
 
 def test_dashboard_lists_scored_first(client):
-    refs = result_refs(client.get("/").text)
+    refs = result_refs(client.get("/en/c/najd-digital/").text)
     assert refs[0] == "000000001004"
     assert len(refs) == 9
 
 
 def test_dashboard_shows_filtered_section_with_reasons(client):
-    html = client.get("/").text
-    assert "Filtered out (21)" in html
-    assert "deadline passed" in html
+    html = client.get("/en/c/najd-digital/").text
+    assert "21 filtered by rules" in html
+    assert "Deadline passed" in html
 
 
 def test_missing_deadline_label(client):
-    assert deadline_label(None, TODAY) == "غير محدد / not stated"
+    assert deadline_label(None, TODAY) == "No deadline stated"
     assert deadline_label(TODAY, TODAY) == "Closes today"
     assert deadline_label(date(2026, 11, 27), TODAY) == "12 days left"
-    assert "غير محدد / not stated" in client.get("/c/najd-digital/tenders/000000001006").text
+    assert deadline_label(date(2026, 11, 27), TODAY, "ar") == "12 يومًا متبقيًا"
+    assert "No deadline stated" in client.get("/en/c/najd-digital/tenders/000000001006").text
 
 
-def test_arabic_title_has_dir_auto(client):
-    html = client.get("/").text
-    assert re.search(r'dir="auto"[^>]*>\s*حل ذكاء اصطناعي', html)
+def test_arabic_page_lists_arabic_titles(client):
+    html = client.get("/ar/c/najd-digital/").text
+    assert re.search(r'<span class="title">\s*حل ذكاء اصطناعي', html)
 
 
 def test_unknown_tender_404(client):
@@ -56,26 +57,28 @@ def test_read_only_hides_profile_link(db_settings):
         live = render_dashboard(s, profile, TODAY, read_only=False)
         static = render_dashboard(s, profile, TODAY, read_only=True)
     engine.dispose()
-    assert 'href="/c/najd-digital/profile"' in live
+    assert 'href="/en/c/najd-digital/profile"' in live
     assert "/profile" not in static
 
 
 def test_dashboard_moves_expired_tenders_to_filtered(db_settings):
     # Matching ran on 2026-11-15; viewing on 2026-12-03 means 000000001002 (deadline 2026-12-01) has closed.
-    html = TestClient(create_app(db_settings, today=date(2026, 12, 3))).get("/").text
+    html = TestClient(create_app(db_settings, today=date(2026, 12, 3))).get("/en/c/najd-digital/").text
     assert "000000001002" not in result_refs(html)
 
 
 def test_tender_page_shows_etimad_card_fields(client):
-    html = client.get("/c/najd-digital/tenders/000000001002").text  # paid booklet (500), closes 12:00
+    html = client.get("/en/c/najd-digital/tenders/000000001002").text  # paid booklet (500), closes 12:00
     assert "500 SAR" in html
     assert "12:00" in html
     assert "Inquiries until" in html
     assert "View on Etimad" not in html  # seed tenders have no source link
-    free = client.get("/c/najd-digital/tenders/000000001001").text
-    assert "مجانا / Free" in free
+    free = client.get("/en/c/najd-digital/tenders/000000001001").text
+    assert "<dd>Free</dd>" in free
 
 
 def test_tender_page_shows_inferred_region(client):
-    html = client.get("/c/najd-digital/tenders/000000001003").text  # agency name says "بالمنطقة الشرقية"
-    assert "المنطقة الشرقية (from agency name)" in html
+    html = client.get("/en/c/najd-digital/tenders/000000001003").text  # agency name says "بالمنطقة الشرقية"
+    assert "Eastern Province" in html and "(from the agency name)" in html
+    arabic = client.get("/ar/c/najd-digital/tenders/000000001003").text
+    assert "المنطقة الشرقية" in arabic and "(مستنتجة من اسم الجهة)" in arabic

@@ -23,11 +23,11 @@ def pdf_bytes(with_text: bool = True) -> bytes:
 
 
 def upload(client, content: bytes, name: str = "booklet.pdf"):
-    return client.post("/reader", files={"file": (name, content, "application/pdf")}, follow_redirects=False)
+    return client.post("/en/reader", files={"file": (name, content, "application/pdf")}, follow_redirects=False)
 
 
 def test_reader_page_has_upload_form(db_settings):
-    html = TestClient(create_app(db_settings, today=TODAY)).get("/reader").text
+    html = TestClient(create_app(db_settings, today=TODAY)).get("/en/reader").text
     assert 'type="file"' in html
 
 
@@ -37,8 +37,10 @@ def test_upload_pdf_shows_brief(db_settings):
     assert response.status_code == 303
     page = client.get(response.headers["location"])
     assert page.status_code == 200
-    assert "ملخص تجريبي" in page.text
+    assert "Fake summary" in page.text and "ملخص تجريبي" not in page.text  # English page, English brief
     assert "ISO 27001" in page.text
+    arabic = client.get(response.headers["location"].replace("/en/", "/ar/"))
+    assert "ملخص تجريبي" in arabic.text and "Fake summary" not in arabic.text
 
 
 def test_upload_scanned_pdf_shows_friendly_error(db_settings):
@@ -65,14 +67,15 @@ def test_brief_truncated_banner():
 
 def test_sample_brief_route(db_settings):
     client = TestClient(create_app(db_settings, today=TODAY, provider=FakeProvider()))
-    assert client.get("/briefs/sample").status_code == 404
+    assert client.get("/en/briefs/sample").status_code == 404
     upload(client, pdf_bytes(), name="sample_booklet.pdf")
-    assert client.get("/briefs/sample").status_code == 200
+    assert client.get("/en/briefs/sample").status_code == 200
+    assert client.get("/ar/briefs/sample").status_code == 200
 
 
 def test_reader_absent_in_read_only(db_settings):
     client = TestClient(create_app(db_settings, today=TODAY, read_only=True))
-    assert client.get("/reader").status_code == 404
+    assert client.get("/en/reader").status_code == 404
 
 
 def test_ai_failure_shows_friendly_502(db_settings):
@@ -99,5 +102,5 @@ def test_upload_route_runs_in_a_worker_thread():
     import inspect
 
     app = create_app(today=TODAY)
-    route = next(r for r in app.routes if getattr(r, "path", "") == "/reader" and "POST" in r.methods)
+    route = next(r for r in app.routes if getattr(r, "path", "") == "/{lang}/reader" and "POST" in r.methods)
     assert not inspect.iscoroutinefunction(route.endpoint)

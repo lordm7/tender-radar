@@ -35,7 +35,7 @@ def current_profile(settings):
 
 def test_profile_page_shows_form(db_settings):
     client = TestClient(create_app(db_settings, today=TODAY))
-    html = client.get("/c/najd-digital/profile").text
+    html = client.get("/en/c/najd-digital/profile").text
     assert "<form" in html
     assert "سيبراني" in html
 
@@ -44,7 +44,7 @@ def test_profile_edit_saves_and_rescores(db_settings, profile):
     fake = FakeProvider()
     client = TestClient(create_app(db_settings, today=TODAY, provider=fake))
     form = form_from(profile, keywords="\n".join(profile.keywords + ["صيانة"]))
-    response = client.post("/c/najd-digital/profile", data=form, follow_redirects=False)
+    response = client.post("/en/c/najd-digital/profile", data=form, follow_redirects=False)
     assert response.status_code == 303
     saved = current_profile(db_settings)
     assert "صيانة" in saved.keywords
@@ -54,15 +54,15 @@ def test_profile_edit_saves_and_rescores(db_settings, profile):
 
 def test_profile_rejects_min_greater_than_max(db_settings, profile):
     client = TestClient(create_app(db_settings, today=TODAY, provider=FakeProvider()))
-    response = client.post("/c/najd-digital/profile", data=form_from(profile, min_value_sar="5000000", max_value_sar="1000"))
+    response = client.post("/en/c/najd-digital/profile", data=form_from(profile, min_value_sar="5000000", max_value_sar="1000"))
     assert response.status_code == 422
-    assert "Minimum value must not be greater than the maximum value" in response.text
+    assert "The minimum value must not be greater than the maximum value." in response.text
     assert current_profile(db_settings).min_value_sar == profile.min_value_sar
 
 
 def test_profile_route_absent_in_read_only(db_settings):
     client = TestClient(create_app(db_settings, today=TODAY, read_only=True))
-    assert client.get("/c/najd-digital/profile").status_code == 404
+    assert client.get("/en/c/najd-digital/profile").status_code == 404
 
 
 def test_profile_save_keeps_edits_when_ai_not_configured(db_settings, profile):
@@ -70,7 +70,7 @@ def test_profile_save_keeps_edits_when_ai_not_configured(db_settings, profile):
 
     broken = Settings(database_url=db_settings.database_url, ai_provider="gemini", gemini_api_key=None, gemini_model=None)
     client = TestClient(create_app(broken, today=TODAY))
-    response = client.post("/c/najd-digital/profile", data=form_from(profile, keywords="\n".join(profile.keywords + ["شبكات"])))
+    response = client.post("/en/c/najd-digital/profile", data=form_from(profile, keywords="\n".join(profile.keywords + ["شبكات"])))
     assert response.status_code == 200
     assert "Profile saved, but AI scoring is not configured" in response.text
     assert "شبكات" in current_profile(db_settings).keywords

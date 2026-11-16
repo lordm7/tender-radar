@@ -1,93 +1,85 @@
 {% extends "base.html" %}
-{% block title %}Booklet brief · Tender Radar{% endblock %}
-{% macro section(title_en, title_ar, items) -%}
+{% from "_macros.html" import status_icon %}
+{% block title %}{{ t("brief_for") }} {{ filename }}{% endblock %}
+{% macro body(value) -%}
+{%- if original -%}<span lang="ar" dir="rtl">{{ value }}</span>{%- else -%}{{ value }}{%- endif -%}
+{%- endmacro %}
+{% macro section(title, items) -%}
   {% if items %}
-  <section class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-    <h2 class="flex justify-between font-semibold"><span>{{ title_en }}</span><span class="ar" dir="rtl">{{ title_ar }}</span></h2>
-    <ul dir="rtl" class="ar mt-3 list-disc space-y-1 pr-5 text-slate-700">{% for x in items %}<li>{{ x }}</li>{% endfor %}</ul>
+  <section class="panel panel-pad">
+    <h2>{{ title }}</h2>
+    <ul class="bullets" style="margin-top:8px"{% if original %} lang="ar" dir="rtl"{% endif %}>{% for x in items %}<li>{{ x }}</li>{% endfor %}</ul>
   </section>
   {% endif %}
 {%- endmacro %}
 {% block content %}
-<a href="{{ links.home() }}" class="text-sm text-emerald-700 hover:underline">← Back</a>
-<div class="mt-3 flex flex-wrap items-end justify-between gap-2">
-  <div>
-    <p class="text-sm text-slate-500">Bid brief for</p>
-    <h1 class="text-2xl font-semibold">{{ filename }}</h1>
+<div class="wrap stack">
+  <div class="page-head">
+    <div>
+      <div class="lbl">{{ t("brief_for") }}</div>
+      <h1 style="text-align:start"><bdi lang="{{ 'en' if filename.isascii() else 'ar' }}">{{ filename }}</bdi></h1>
+    </div>
+    {% if filename == "sample_booklet.pdf" %}<span class="badge" style="margin-inline-start:auto">{{ t("synthetic_booklet") }}</span>{% endif %}
   </div>
-  {% if filename == "sample_booklet.pdf" %}
-  <span class="rounded-full bg-amber-100 px-3 py-1 text-sm text-amber-900">Synthetic sample booklet · نموذج تجريبي</span>
+  {% if original %}<p><span class="orig-tag">{{ t("arabic_original") }}</span></p>{% endif %}
+
+  {% if brief.truncated %}<div role="status" class="alert alert-warn">{{ t("truncated") }}</div>{% endif %}
+
+  <section class="panel panel-pad">
+    <h2>{{ t("scope") }}</h2>
+    <p style="margin-top:6px;font-size:1.05rem;color:var(--text-2)">{{ body(text.scope) }}</p>
+  </section>
+
+  {% if text.go_no_go %}
+  <section class="panel panel-pad">
+    <h2>{{ t("go_no_go") }}</h2>
+    <ul class="check-list" style="margin-top:8px">
+      {% for c in text.go_no_go %}
+      <li>{{ status_icon(c.status) }}
+        <div>
+          <p style="color:var(--head);font-weight:600">{{ body(c.item) }} <span class="muted small">({{ t(c.status) }})</span></p>
+          {% if c.note %}<p class="muted small">{{ body(c.note) }}</p>{% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <div class="grid-2">
+    {{ section(t("key_dates"), text.key_dates) }}
+    {{ section(t("deliverables"), text.deliverables) }}
+    {{ section(t("eligibility"), text.eligibility) }}
+    {{ section(t("required_documents"), text.required_documents) }}
+    {{ section(t("evaluation"), text.evaluation_criteria) }}
+    {{ section(t("risks"), text.risks) }}
+  </div>
+
+  {% if qa or can_ask %}
+  <section id="ask" class="panel panel-pad">
+    <h2>{{ t("ask_title") }}</h2>
+    <p class="muted small" style="margin-top:2px">{{ t("ask_hint") }}</p>
+    {% if qa %}
+    <ul class="qa" style="margin-top:12px">
+      {% for question, a in qa %}
+      <li>
+        <p class="q" dir="auto">{{ question }}</p>
+        <p class="a" dir="auto"{% if not a.found %} style="color:var(--muted)"{% endif %}>{{ a.answer }}</p>
+        {% if a.citations %}{% for n in a.citations %}<span class="cite">{{ t("page_n", n=n) }}</span>{% endfor %}
+        {% elif not a.found %}<span class="cite" style="color:var(--muted);background:transparent;padding:0">{{ t("not_stated") }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if can_ask %}
+    {% if ask_error %}<div role="alert" class="alert alert-error" style="margin-top:12px">{{ ask_error }}</div>{% endif %}
+    <form method="post" action="{{ links.ask(brief_id) }}" class="ask-form">
+      <label for="question" class="sr-only">{{ t("ask_label") }}</label>
+      <input id="question" name="question" dir="auto" maxlength="500" required placeholder="{{ t('ask_placeholder') }}">
+      <button class="btn btn-primary">{{ t("ask_button") }}</button>
+    </form>
+    {% endif %}
+  </section>
   {% endif %}
 </div>
-
-{% if brief.truncated %}
-<div role="status" class="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200">Long booklet: only the first part was analysed.</div>
-{% endif %}
-
-<section class="mt-5 rounded-2xl bg-gradient-to-br from-emerald-50 to-white p-6 ring-1 ring-emerald-200">
-  <h2 class="font-semibold">Scope <span class="ar text-slate-500" dir="rtl">· نطاق العمل</span></h2>
-  <p dir="auto" class="ar mt-2 text-lg leading-relaxed text-slate-800">{{ brief.scope }}</p>
-</section>
-
-{% if brief.go_no_go %}
-<section class="mt-5 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-  <h2 class="flex justify-between font-semibold"><span>Go / no-go checklist</span><span class="ar" dir="rtl">قائمة قرار المشاركة</span></h2>
-  <ul class="mt-4 divide-y divide-slate-100">
-    {% for c in brief.go_no_go %}
-    {% set icon = {"meets": "✅", "gap": "❌", "check": "⚠️"}[c.status] %}
-    {% set label = {"meets": "Meets", "gap": "Gap", "check": "Check"}[c.status] %}
-    <li class="flex items-start gap-3 py-3">
-      <span class="text-xl" aria-hidden="true">{{ icon }}</span>
-      <div dir="auto" class="ar flex-1">
-        <p class="font-medium">{{ c.item }} <span class="text-xs text-slate-500">({{ label }})</span></p>
-        {% if c.note %}<p class="text-sm text-slate-600">{{ c.note }}</p>{% endif %}
-      </div>
-    </li>
-    {% endfor %}
-  </ul>
-</section>
-{% endif %}
-
-<div class="mt-5 grid gap-4 md:grid-cols-2">
-  {{ section("Key dates", "التواريخ المهمة", brief.key_dates) }}
-  {{ section("Deliverables", "المخرجات", brief.deliverables) }}
-  {{ section("Eligibility", "شروط التأهيل", brief.eligibility) }}
-  {{ section("Required documents", "المستندات المطلوبة", brief.required_documents) }}
-  {{ section("Evaluation", "معايير التقييم", brief.evaluation_criteria) }}
-  {{ section("Risks", "المخاطر", brief.risks) }}
-</div>
-
-{% if qa or can_ask %}
-<section id="ask" class="mt-5 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-  <h2 class="flex justify-between font-semibold"><span>Ask the booklet</span><span class="ar" dir="rtl">اسأل الكراسة</span></h2>
-  <p class="mt-1 text-sm text-slate-500">Answers come only from the booklet text and cite the page they used.</p>
-  {% if qa %}
-  <ul class="mt-4 space-y-4">
-    {% for question, a in qa %}
-    <li class="rounded-lg bg-slate-50 p-4 ring-1 ring-slate-100">
-      <p dir="auto" class="ar font-medium">{{ question }}</p>
-      <p dir="auto" class="ar mt-2 whitespace-pre-line {{ 'text-slate-800' if a.found else 'text-slate-500' }}">{{ a.answer }}</p>
-      {% if a.citations %}
-      <p class="mt-2 flex flex-wrap gap-1 text-xs">
-        {% for n in a.citations %}<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-900">p. {{ n }}</span>{% endfor %}
-      </p>
-      {% elif not a.found %}
-      <p class="mt-2 text-xs text-slate-500">Not stated in the booklet</p>
-      {% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-  {% if can_ask %}
-  {% if ask_error %}<div role="alert" class="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800 ring-1 ring-red-200">{{ ask_error }}</div>{% endif %}
-  <form method="post" action="/briefs/{{ brief_id }}/ask" class="mt-4 flex flex-col gap-2 sm:flex-row">
-    <label for="question" class="sr-only">Your question</label>
-    <input id="question" name="question" dir="auto" maxlength="500" required
-           placeholder="e.g. ما هي غرامة التأخير؟ / What is the minimum technical score?"
-           class="ar flex-1 rounded-lg border border-slate-300 px-3 py-2">
-    <button class="rounded-lg bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800">Ask</button>
-  </form>
-  {% endif %}
-</section>
-{% endif %}
 {% endblock %}

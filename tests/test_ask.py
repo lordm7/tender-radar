@@ -157,5 +157,7 @@ def test_cli_ask_answers_and_stores_on_the_latest_brief(tmp_path, monkeypatch, c
     assert "ISO 27001 مطلوبة" in out and "p. 3" in out
     engine = make_engine(f"sqlite:///{(tmp_path / 'c.db').as_posix()}")
     with session_scope(engine) as s:
-        assert len(list_answers(s, latest_brief_id(s, SAMPLE.name))) == 1
+        brief_id = latest_brief_id(s, SAMPLE.name)
+        assert len(list_answers(s, brief_id, lang="ar")) == 1  # an Arabic question is shown on Arabic pages
+        assert list_answers(s, brief_id, lang="en") == []
     engine.dispose()

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_macros.html" import radar, score_badge %}
+{% block title %}{{ t("home_title") }}{% endblock %}
+{% block content %}
+<section class="wrap hero" id="product">
+  <div>
+    <div class="eyebrow">{{ t("eyebrow") }}</div>
+    <h1>{{ t("hero_title") }}</h1>
+    <p class="lead">{{ t("hero_text") }}</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="{{ links.demo() }}">{{ t("open_demo") }}</a>
+      <a class="btn btn-ghost" href="{{ github_url }}">{{ t("view_source") }}</a>
+    </div>
+    <p class="tags">{{ t("hero_tags") }}</p>
+  </div>
+  {% if preview %}
+  <figure class="frame" style="margin:0" aria-label="{{ t('preview_label') }}">
+    <div class="frame-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="frame-stats">
+      <span><b style="color:var(--accent-2)">{{ preview.cards|length }}</b> {{ t("worth_a_look") }}</span>
+      <span><b>{{ preview.filtered }}</b> {{ t("filtered_by_rules") }}</span>
+      <span><b style="color:var(--warn)">{{ preview.closing }}</b> {{ t("closes_this_week") }}</span>
+    </div>
+    <div class="frame-body">
+      {{ radar(preview.cards, preview.faint, t("radar_label"), interactive=False) }}
+      <ul class="rows">
+        {% for c in preview.cards[:4] %}
+        <li class="row">{{ score_badge(c.score) }}<span class="title">{{ orig(c.title, c.title_orig, tag=False) }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </figure>
+  {% endif %}
+</section>
+
+<div class="wrap">
+  <section class="stats" aria-label="{{ t('nav_product') }}">
+    <div><b>{{ stats.screened }}</b>{{ t("stat_screened") }}</div>
+    <div><b>{{ stats.filtered_pct }}%</b>{{ t("stat_filtered") }}</div>
+    <div><b dir="ltr">{{ stats.agreement }}</b>{{ t("stat_agreement") }}</div>
+    <div><b>{{ t("zero_cost") }}</b>{{ t("stat_cost") }}</div>
+  </section>
+</div>
+
+<section class="wrap section" id="how">
+  <div class="eyebrow">{{ t("how_title") }}</div>
+  <div class="features">
+    <div class="feature">
+      <div class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></div>
+      <h3>{{ t("step_screen") }}</h3>
+      <p>{{ t("step_screen_text") }}</p>
+    </div>
+    <div class="feature">
+      <div class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg></div>
+      <h3>{{ t("step_score") }}</h3>
+      <p>{{ t("step_score_text") }}</p>
+    </div>
+    <div class="feature">
+      <div class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 13l2 2 4-4"/></svg></div>
+      <h3>{{ t("step_decide") }}</h3>
+      <p>{{ t("step_decide_text") }}</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

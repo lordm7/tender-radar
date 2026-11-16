@@ -27,10 +27,10 @@ def test_daily_builds_the_whole_demo_with_the_fake_ai(tmp_path, monkeypatch):
     out = tmp_path / "site"
     assert main(["daily", "--out", str(out), "--today", "2026-11-20"]) == 0
     assert (out / "index.html").exists()
-    assert (out / "c" / "najd-digital" / "index.html").exists()
-    assert (out / "c" / "al-bunyan" / "index.html").exists()
-    assert (out / "briefs" / "sample.html").exists()
-    assert "scores precomputed on 2026-11-20" in (out / "c" / "najd-digital" / "index.html").read_text(encoding="utf-8")
+    assert (out / "en" / "c" / "najd-digital" / "index.html").exists()
+    assert (out / "ar" / "c" / "al-bunyan" / "index.html").exists()
+    assert (out / "en" / "briefs" / "sample.html").exists()
+    assert "Scores precomputed on 20 Nov 2026" in (out / "en" / "c" / "najd-digital" / "index.html").read_text(encoding="utf-8")
 
 
 def test_daily_still_publishes_when_the_ai_is_down(tmp_path, monkeypatch, capsys):
@@ -38,9 +38,9 @@ def test_daily_still_publishes_when_the_ai_is_down(tmp_path, monkeypatch, capsys
     monkeypatch.setattr(cli, "get_provider", lambda settings: AIDown())
     out = tmp_path / "site"
     assert main(["daily", "--out", str(out), "--today", "2026-11-20"]) == 0
-    dashboard = (out / "c" / "najd-digital" / "index.html").read_text(encoding="utf-8")
-    assert "not<br>scored" in dashboard
-    assert not (out / "briefs" / "sample.html").exists()
+    dashboard = (out / "en" / "c" / "najd-digital" / "index.html").read_text(encoding="utf-8")
+    assert "it will retry on the next run" in dashboard
+    assert not (out / "en" / "briefs" / "sample.html").exists()
     assert "brief step failed" in capsys.readouterr().out
 
 
@@ -78,11 +78,14 @@ def test_daily_asks_the_sample_questions_and_shows_them_in_the_demo(tmp_path, mo
     use_db(tmp_path, monkeypatch)
     out = tmp_path / "site"
     assert main(["daily", "--out", str(out), "--today", "2026-11-20"]) == 0
-    html = (out / "briefs" / "sample.html").read_text(encoding="utf-8")
-    assert "Ask the booklet" in html
-    for question in cli.SAMPLE_QUESTIONS:
-        assert question in html
-    assert "<form" not in html  # the static demo shows answers but cannot ask
+    for lang, title in (("en", "Ask the booklet"), ("ar", "اسأل الكراسة")):
+        html = (out / lang / "briefs" / "sample.html").read_text(encoding="utf-8")
+        assert title in html
+        for question in cli.SAMPLE_QUESTIONS[lang]:
+            assert question in html
+        other = "ar" if lang == "en" else "en"
+        assert not any(q in html for q in cli.SAMPLE_QUESTIONS[other])  # one language per page
+        assert "<form" not in html  # the static demo shows answers but cannot ask
 
 
 def test_daily_reports_its_status_for_the_deploy_gate(tmp_path, monkeypatch):

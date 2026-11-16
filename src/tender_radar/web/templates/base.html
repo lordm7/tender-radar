@@ -1,43 +1,63 @@
-<!doctype html>
-<html lang="en">
+{% from "_macros.html" import logo %}<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Tender Radar{% endblock %}</title>
+  <title>{% block title %}{{ t("brand") }}{% endblock %} · {{ t("brand") }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: "Inter", "IBM Plex Sans Arabic", system-ui, sans-serif; }
-    [dir="rtl"], .ar { font-family: "IBM Plex Sans Arabic", "Inter", sans-serif; }
-  </style>
+  <link rel="stylesheet" href="{{ links.static('app.css') }}">
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen">
-  <header class="bg-gradient-to-r from-emerald-900 to-teal-800 text-white">
-    <div class="max-w-6xl mx-auto px-4 py-5 flex flex-wrap items-center justify-between gap-3">
-      <a href="{{ links.home() }}" class="flex items-center gap-3">
-        <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-xl">◎</span>
-        <span>
-          <span class="block text-lg font-semibold leading-tight">Tender Radar</span>
-          <span class="block text-xs text-emerald-100 ar">رادار المنافسات الحكومية</span>
-        </span>
-      </a>
-      <nav class="flex flex-wrap items-center gap-2 text-sm">
-        <span class="rounded-full bg-amber-300/90 text-amber-950 px-3 py-1 font-medium">Synthetic demo data</span>
-        {% if several_companies and links.company %}<a class="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1" href="{{ links.companies() }}">Switch company</a>{% endif %}
-        {% if has_sample_brief %}<a class="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1" href="{{ links.sample_brief() }}">See a booklet brief</a>{% endif %}
-        {% if not links.read_only %}
-          <a class="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1" href="{{ links.reader() }}">Read a booklet</a>
-          {% if links.company %}<a class="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1" href="{{ links.profile() }}">Company profile</a>{% endif %}
+<body>
+  <a class="skip" href="#main">{{ t("skip_to_content") }}</a>
+  {% set kind = links.page[0] %}
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="{{ links.home() }}">{{ logo(20) }}<span>{{ t("brand") }}</span></a>
+      <nav class="nav-links" aria-label="{{ t('brand') }}">
+        {% if kind == "home" %}
+          <a href="#product">{{ t("nav_product") }}</a>
+          <a href="#how">{{ t("nav_how") }}</a>
+          <a href="#about">{{ t("nav_about") }}</a>
+        {% else %}
+          <a href="{{ links.matches() }}" {% if kind in ("dashboard", "tender", "companies") %}aria-current="page"{% endif %}>{{ t("matches") }}</a>
+          {% if not links.read_only %}
+            <a href="{{ links.reader() }}" {% if kind in ("reader", "brief", "brief_sample") %}aria-current="page"{% endif %}>{{ t("booklet_reader") }}</a>
+            {% if links.company %}<a href="{{ links.profile() }}" {% if kind == "profile" %}aria-current="page"{% endif %}>{{ t("bidding_profile") }}</a>{% endif %}
+          {% elif has_sample_brief or kind == "brief_sample" %}
+            <a href="{{ links.sample_brief() }}" {% if kind == "brief_sample" %}aria-current="page"{% endif %}>{{ t("sample_brief") }}</a>
+          {% endif %}
         {% endif %}
       </nav>
+      <div class="nav-end">
+        {% if links.read_only and kind != "home" %}<span class="badge">{{ t("synthetic_badge") }}</span>{% endif %}
+        {% if links.company and links.companies_list|length > 1 %}
+        <details class="picker">
+          <summary class="pill">{% for id, n in links.companies_list if id == links.company %}{{ n }}{% endfor %} ▾</summary>
+          <ul>{% for id, n in links.companies_list %}<li><a href="{{ links.dashboard_of(id) }}">{{ n }}</a></li>{% endfor %}</ul>
+        </details>
+        {% endif %}
+        <span class="lang-switch" role="group" aria-label="{{ t('language') }}">
+          {% if lang == "en" %}<span aria-current="true">EN</span><a href="{{ links.switch() }}" lang="ar" hreflang="ar">ع</a>
+          {% else %}<a href="{{ links.switch() }}" lang="en" hreflang="en">EN</a><span aria-current="true">ع</span>{% endif %}
+        </span>
+        {% if kind == "home" %}<a class="btn btn-light" href="{{ links.demo() }}">{{ t("live_demo") }}</a>{% endif %}
+      </div>
     </div>
   </header>
-  <main class="max-w-6xl mx-auto px-4 py-8">
+  <main id="main">
     {% block content %}{% endblock %}
   </main>
-  <footer class="max-w-6xl mx-auto px-4 pb-10 text-xs text-slate-500">
-    {% block footer %}{{ footer or "Tender Radar · synthetic demo data · built with Python + AI" }}{% endblock %}
+  <footer id="about">
+    <div class="wrap">
+      {% if kind == "home" %}<h2 class="lbl">{{ t("about_title") }}</h2><p class="muted" style="margin-block:6px 12px;max-width:62ch">{{ t("about_text") }}</p>{% endif %}
+      <div>
+        <span><span class="who">{{ t("built_by") }} <span lang="en">{{ author }}</span></span> <span class="muted">· {{ t("author_role") }}</span></span>
+        <span class="links"><a href="{{ github_url }}" lang="en">{{ t("github") }}</a><a href="{{ linkedin_url }}" lang="en">{{ t("linkedin") }}</a></span>
+      </div>
+      <span class="fine">{{ t("disclaimer") }}{% if links.read_only and kind != "home" %} {{ t("precomputed", date=fmt_date(today)) }}{% endif %}</span>
+    </div>
   </footer>
   {% block scripts %}{% endblock %}
 </body>

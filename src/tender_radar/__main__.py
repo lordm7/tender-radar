@@ -38,12 +38,20 @@ from tender_radar.settings import Settings
 ROOT = Path(__file__).resolve().parents[2]
 SEED_DIR = ROOT / "data" / "seed"
 SAMPLE_BOOKLET_PROFILE = "najd-digital"  # the sample booklet is an IT tender; judge it as the IT firm
-# Asked about the sample booklet every day, so the public demo shows "Ask the booklet" working.
-SAMPLE_QUESTIONS = [
-    "ما هي غرامة التأخير وما حدها الأقصى؟",
-    "هل يشترط الحصول على شهادة ISO 27001؟",
-    "What is the minimum technical score needed to pass?",
-]
+# Asked about the sample booklet every day, so the public demo shows "Ask the booklet"
+# working. One list per language: each demo page shows only its own language's questions.
+SAMPLE_QUESTIONS = {
+    "en": [
+        "What is the late-delivery penalty, and what is its maximum?",
+        "Is an ISO 27001 certificate required?",
+        "What is the minimum technical score needed to pass?",
+    ],
+    "ar": [
+        "ما هي غرامة التأخير وما حدها الأقصى؟",
+        "هل يشترط الحصول على شهادة ISO 27001؟",
+        "ما الحد الأدنى للنجاح الفني؟",
+    ],
+}
 
 
 def _cmd_seed(args: argparse.Namespace, settings: Settings) -> int:
@@ -144,10 +152,11 @@ def _cmd_ask(args: argparse.Namespace, settings: Settings) -> int:
         print(f"Q: {question}")
         print(f"A: {answer.answer}")
         print(f"   [{pages_note}]")
+        lang = args.lang or ("ar" if any(0x0600 <= ord(ch) <= 0x06FF for ch in question) else "en")  # Arabic letters?
         with session_scope(engine) as s:
             brief_id = latest_brief_id(s, path.name)
             if brief_id is not None:
-                save_answer(s, brief_id, question, answer)
+                save_answer(s, brief_id, question, answer, lang=lang)
     engine.dispose()
     return 1 if failed == len(args.questions) else 0
 
@@ -250,7 +259,10 @@ def _cmd_daily(args: argparse.Namespace, settings: Settings) -> int:
         ("seed", ["seed", "--rolling", "--today", today], True),
         ("match", ["match", "--today", today], False),
         ("brief", ["brief", str(SEED_DIR / "sample_booklet.pdf"), "--profile", SAMPLE_BOOKLET_PROFILE], False),
-        ("ask", ["ask", str(SEED_DIR / "sample_booklet.pdf"), *SAMPLE_QUESTIONS], False),
+        *[
+            (f"ask ({lang})", ["ask", str(SEED_DIR / "sample_booklet.pdf"), *questions, "--lang", lang], False)
+            for lang, questions in SAMPLE_QUESTIONS.items()
+        ],
         ("export", ["export", "--out", args.out, "--today", today], True),
     ]
     if settings.smtp_configured:
@@ -309,6 +321,7 @@ def build_parser() -> argparse.ArgumentParser:
     ask = sub.add_parser("ask", help="ask questions about a booklet PDF (answers cite pages)")
     ask.add_argument("path", help="path to the booklet PDF")
     ask.add_argument("questions", nargs="+", help="one or more questions, in Arabic or English")
+    ask.add_argument("--lang", choices=["en", "ar"], help="page language to show the answers on (default: guessed from the question)")
     ask.set_defaults(handler=_cmd_ask)
 
     export = sub.add_parser("export", help="write the read-only static demo site")

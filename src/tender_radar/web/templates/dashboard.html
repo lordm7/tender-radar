@@ -1,78 +1,89 @@
 {% extends "base.html" %}
-{% macro score_badge(m) -%}
-  {%- if m and m.status == "scored" -%}
-    {%- set cls = "bg-emerald-600" if m.score >= 80 else ("bg-amber-500" if m.score >= 50 else "bg-slate-400") -%}
-    <span class="inline-flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl {{ cls }} text-white">
-      <span class="text-xl font-bold leading-none">{{ m.score }}</span><span class="text-[10px] uppercase tracking-wide">fit</span>
-    </span>
-  {%- else -%}
-    <span class="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-slate-500 text-xs text-center">not<br>scored</span>
-  {%- endif -%}
-{%- endmacro %}
+{% from "_macros.html" import radar, score_badge %}
+{% block title %}{{ t("matches") }} · {{ name[0] }}{% endblock %}
 {% block content %}
-<section class="mb-6">
-  <p class="text-sm text-slate-500">Matches for</p>
-  <h1 class="text-2xl font-semibold">{{ profile.name }}</h1>
-  <p class="text-sm text-slate-500 mt-1">{{ results|length }} tenders worth a look · {{ filtered|length }} filtered out by rules · as of {{ today.isoformat() }}</p>
-</section>
-
-<section class="mb-5 flex flex-wrap gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 text-sm" aria-label="Filters">
-  <label class="flex items-center gap-2">Min score
-    <select id="f-score" class="rounded-md border-slate-300 border px-2 py-1">
-      <option value="0">Any</option><option value="50">50+</option><option value="80">80+</option>
-    </select>
-  </label>
-  <label class="flex items-center gap-2">Agency
-    <select id="f-agency" class="rounded-md border-slate-300 border px-2 py-1 ar" dir="auto">
-      <option value="">All</option>
-      {% for a in agencies %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
-    </select>
-  </label>
-  <label class="flex items-center gap-2">Deadline
-    <select id="f-days" class="rounded-md border-slate-300 border px-2 py-1">
-      <option value="">Any</option><option value="14">Within 14 days</option><option value="30">Within 30 days</option>
-    </select>
-  </label>
-  <span id="f-count" class="ml-auto self-center text-slate-500"></span>
-</section>
-
-<section id="results" class="grid gap-3">
-  {% for r in results %}
-  <a href="{{ links.tender(r.tender.reference) }}" class="card flex gap-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 hover:ring-emerald-500 transition"
-     data-reference="{{ r.tender.reference }}" data-score="{{ r.match.score if r.match and r.match.score is not none else 0 }}"
-     data-agency="{{ r.tender.agency }}" data-days-left="{{ r.days_left if r.days_left is not none else '' }}">
-    {{ score_badge(r.match) }}
-    <div class="min-w-0 flex-1">
-      <h3 dir="auto" class="ar text-lg font-semibold text-slate-900">{{ r.tender.title }}</h3>
-      <p class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
-        <span dir="auto" class="ar">{{ r.tender.agency }}</span>
-        <span>⏱ {{ deadline_label(r.tender.deadline) }}</span>
-        {% if r.tender.estimated_value_sar %}<span>≈ {{ "{:,.0f}".format(r.tender.estimated_value_sar) }} SAR</span>{% endif %}
-        <span class="text-slate-400">{{ r.tender.reference }}</span>
-      </p>
-      {% if r.match %}
-      <div class="mt-2 grid gap-1 text-sm md:grid-cols-2">
-        <ul class="list-disc pl-5 text-slate-600">{% for x in r.match.reasons_en %}<li>{{ x }}</li>{% endfor %}</ul>
-        <ul dir="rtl" class="ar list-disc pr-5 text-slate-600">{% for x in r.match.reasons_ar %}<li>{{ x }}</li>{% endfor %}</ul>
-      </div>
-      {% endif %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <div class="lbl">{{ t("matches_on", date=fmt_date(today)) }}</div>
+      <h1>{{ orig(name[0], name[1], tag=False) }}</h1>
     </div>
-  </a>
-  {% else %}
-  <p class="rounded-xl bg-white p-6 text-slate-500 ring-1 ring-slate-200">No matching tenders yet.</p>
-  {% endfor %}
-</section>
+    <div class="numbers">
+      <div><b>{{ stats.worth }}</b> {{ t("worth_a_look") }}</div>
+      <div><b>{{ stats.filtered }}</b> {{ t("filtered_by_rules") }}</div>
+      <div class="warn"><b>{{ stats.closing }}</b> {{ t("closes_this_week") }}</div>
+      <div><b>{{ stats.regions }}</b> {{ t("regions") }}</div>
+    </div>
+  </div>
 
-<details id="filtered" class="mt-8 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-  <summary class="cursor-pointer font-medium">Filtered out ({{ filtered|length }}) <span class="text-slate-500 font-normal">— rejected by free rules before any AI call</span></summary>
-  <ul class="mt-3 divide-y divide-slate-100 text-sm">
-    {% for r in filtered %}
-    <li class="flex flex-wrap justify-between gap-2 py-2">
-      <span dir="auto" class="ar">{{ r.tender.title }}</span>
-      <span class="text-slate-500">{{ r.match.reasons_en|join(", ") }}</span>
-    </li>
-    {% endfor %}
-  </ul>
-</details>
+  <div class="mc">
+    <section class="panel radar-panel" aria-label="{{ t('fit_radar') }}">
+      <div class="lbl">{{ t("fit_radar") }}</div>
+      {{ radar(cards, faint, t("radar_label"), selected=cards[0].ref if cards else None) }}
+      <p class="muted small" style="text-align:center">{{ t("radar_hint") }}</p>
+    </section>
+
+    {% set s = cards[0] if cards else None %}
+    <section class="panel panel-pad" id="selected" aria-live="polite">
+      <div class="lbl">{{ t("selected_tender") }}</div>
+      {% if s %}
+      <div class="sel-head">
+        <div class="ring-score" id="sel-ring" style="--p: {{ s.score or 0 }}"><span id="sel-score">{{ s.score if s.score is not none else "—" }}</span></div>
+        <div class="sel-title" id="sel-title">{{ orig(s.title, s.title_orig) }}</div>
+      </div>
+      <p id="sel-reason" style="margin-top:10px;font-size:.9rem">{{ s.reason }}</p>
+      <div class="facts">
+        <div><span class="lbl">{{ t("closes") }}</span><span id="sel-closes">{{ s.closes }} · {{ s.days_label }}</span></div>
+        <div><span class="lbl">{{ t("booklet") }}</span><span id="sel-booklet">{{ s.booklet }}</span></div>
+        <div><span class="lbl">{{ t("inquiries") }}</span><span id="sel-inquiries">{{ s.inquiries }}</span></div>
+      </div>
+      <div class="actions">
+        <a class="btn btn-primary btn-sm" id="sel-open" href="{{ s.url }}">{{ t("open_tender") }}</a>
+        {% if not links.read_only %}<a class="btn btn-ghost btn-sm" href="{{ links.reader() }}">{{ t("brief_booklet") }}</a>
+        {% elif has_sample_brief %}<a class="btn btn-ghost btn-sm" href="{{ links.sample_brief() }}">{{ t("brief_booklet") }}</a>{% endif %}
+      </div>
+      {% else %}
+      <p class="muted" style="margin-top:10px">{{ t("no_matches") }}</p>
+      {% endif %}
+    </section>
+
+    <section class="panel" aria-label="{{ t('all_matches') }}" style="overflow:hidden">
+      <div class="list-head">
+        <span class="lbl">{{ t("all_matches") }}</span>
+        <div class="filters">
+          <label><span class="sr-only">{{ t("f_score") }}</span>
+            <select id="f-score"><option value="0">{{ t("f_any_score") }}</option><option value="50">{{ t("f_score_50") }}</option><option value="80">{{ t("f_score_80") }}</option></select></label>
+          <label><span class="sr-only">{{ t("f_agency") }}</span>
+            <select id="f-agency"><option value="">{{ t("f_any_agency") }}</option>
+              {% for raw, shown, original in agencies %}<option value="{{ raw }}"{% if original %} lang="ar" dir="rtl"{% endif %}>{{ shown }}</option>{% endfor %}
+            </select></label>
+          <label><span class="sr-only">{{ t("f_deadline") }}</span>
+            <select id="f-days"><option value="">{{ t("f_any_deadline") }}</option><option value="14">{{ t("f_days_14") }}</option><option value="30">{{ t("f_days_30") }}</option></select></label>
+        </div>
+      </div>
+      <ul class="rows" id="results">
+        {% for c in cards %}
+        <li><a class="row{{ ' sel' if loop.first }}" href="{{ c.url }}" data-reference="{{ c.ref }}"
+             data-score="{{ c.score if c.score is not none else 0 }}" data-agency="{{ c.agency_raw }}" data-days-left="{{ c.days if c.days is not none else '' }}">
+          {{ score_badge(c.score) }}<span class="title">{{ orig(c.title, c.title_orig, tag=False) }}</span>
+          <span class="left{{ ' soon' if c.soon }}">{{ c.days_label }}</span>
+        </a></li>
+        {% else %}
+        <li class="count">{{ t("no_matches") }}</li>
+        {% endfor %}
+      </ul>
+      <p class="count" id="f-count" data-template="{{ t('shown_of', shown='{shown}', total='{total}') }}"></p>
+      <details class="filtered" id="filtered">
+        <summary>{{ t("n_filtered", n=filtered|length) }} · {{ t("filtered_hint") }}</summary>
+        <ul class="rows">
+          {% for f in filtered %}
+          <li><span>{{ orig(f.title, f.title_orig, tag=False) }}</span><span class="why">{{ f.reasons|join(", ") }}</span></li>
+          {% endfor %}
+        </ul>
+      </details>
+    </section>
+  </div>
+</div>
+<script type="application/json" id="tr-data">{{ data }}</script>
 {% endblock %}
 {% block scripts %}<script src="{{ links.static('app.js') }}"></script>{% endblock %}
