@@ -41,6 +41,7 @@ The owner designs the system and directs AI coding agents, and must be able to e
   - `digest.py`: daily email
   - `prompts/`: versioned prompt templates
 - Seed data (synthetic): `data/seed/` — tenders.json, profile_it_services.json, sample_booklet.pdf
+- Interview study guide (personal, git-ignored): `notes/study-guide.html`; online copy https://claude.ai/artifact/CCRbWiLMsFRJmoe93uRsyf (republish from that file if the stack changes)
 - Eval labels (the user fills them in): `data/eval/labels.json`; run with `scripts/eval_matching.py`. Eval-only tricky tenders (pass the rules, still no-bid): `data/eval/tricky_tenders.json` (refs `00000000900x`, never in the demo)
 - Settings come from environment variables: `TR_DATABASE_URL`, `TR_AI_PROVIDER` (fake|gemini), `GEMINI_API_KEY`, `TR_GEMINI_MODEL` (see `.env.example`)
 
