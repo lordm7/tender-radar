@@ -19,7 +19,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from tender_radar.models import CompanyProfile
-from tender_radar.repository import latest_brief
+from tender_radar.repository import latest_brief, latest_brief_id, list_answers
 from tender_radar.web.app import (
     SAMPLE_BOOKLET,
     STATIC_DIR,
@@ -77,7 +77,8 @@ def export_site(session: Session, profiles: list[CompanyProfile], today: date, o
 
     sample = latest_brief(session, SAMPLE_BOOKLET)
     if sample is not None:
-        html = render_brief(sample[1], sample[0], read_only=True, static_files=True)
+        qa = list_answers(session, latest_brief_id(session, SAMPLE_BOOKLET))  # "Ask the booklet" examples
+        html = render_brief(sample[1], sample[0], read_only=True, static_files=True, qa=qa)
         written.append(_write(out_dir / "briefs" / "sample.html", html))
 
     static_out = out_dir / "static"

@@ -1,7 +1,8 @@
 """Database tables and sessions (SQLAlchemy 2).
 
-Four tables: tenders, profiles, matches (the AI verdicts) and briefs (booklet
-summaries). SQLite by default; the same code runs on PostgreSQL by changing
+Tables: tenders, profiles, matches (the AI verdicts), briefs (booklet
+summaries), booklet_pages (the booklet text, for "Ask the booklet") and
+booklet_questions (questions asked and the AI's cited answers). SQLite by default; the same code runs on PostgreSQL by changing
 TR_DATABASE_URL.
 """
 
@@ -68,6 +69,23 @@ class BriefRow(Base):
     __tablename__ = "briefs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     filename: Mapped[str] = mapped_column(String)
+    json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class BookletPagesRow(Base):
+    """The page texts of a brief's booklet, kept so questions can be asked later."""
+
+    __tablename__ = "booklet_pages"
+    brief_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    pages_json: Mapped[str] = mapped_column(Text)
+
+
+class QuestionRow(Base):
+    __tablename__ = "booklet_questions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    brief_id: Mapped[int] = mapped_column(Integer, index=True)
+    question: Mapped[str] = mapped_column(Text)
     json: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 

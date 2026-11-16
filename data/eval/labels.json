@@ -105,7 +105,44 @@
       "reference": "000000002006",
       "title": "رصف وإنارة الطرق الداخلية",
       "fit": false
+    },
+    {
+      "reference": "000000009001",
+      "title": "توريد أجهزة حاسب آلي محمولة وشاشات للموظفين",
+      "fit": false,
+      "proposed": true
+    },
+    {
+      "reference": "000000009002",
+      "title": "استشارات قانونية لمراجعة عقود الموردين",
+      "fit": false,
+      "proposed": true
+    },
+    {
+      "reference": "000000009003",
+      "title": "إنشاء مركز بيانات احتياطي (أعمال إنشائية وكهربائية)",
+      "fit": false,
+      "proposed": true
+    },
+    {
+      "reference": "000000009004",
+      "title": "تطوير برمجيات تشغيل لأجهزة التصوير الطبي",
+      "fit": false,
+      "proposed": true
+    },
+    {
+      "reference": "000000009005",
+      "title": "توفير كوادر دعم فني بنظام التعاقد الشهري",
+      "fit": false,
+      "proposed": true
+    },
+    {
+      "reference": "000000009006",
+      "title": "تطوير منصة للتداول المالي الإلكتروني",
+      "fit": false,
+      "proposed": true
     }
   ],
-  "_relabel_note": "2026-11-15: first pass judged topic only ('is this IT?') and scored 14/20 = 70%. The labeller confirmed that, then re-labelled 5 tenders with the full question ('can THIS company bid?'). 000000001005 was kept as the labeller's own judgement."
+  "_relabel_note": "2026-11-15: first pass judged topic only ('is this IT?') and scored 14/20 = 70%. The labeller confirmed that, then re-labelled 5 tenders with the full question ('can THIS company bid?'). 000000001005 was kept as the labeller's own judgement.",
+  "_tricky_note": "2026-11-16: 00000000900x come from data/eval/tricky_tenders.json. They pass the rule filter but are no-bids (hardware-only supply, legal work, construction, missing licences/certificates). 'proposed': true means the assistant set the label; the owner should confirm it and then delete the flag."
 }

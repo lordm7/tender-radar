@@ -29,19 +29,24 @@ from sqlalchemy.orm import Session
 from tender_radar.ai.provider import AIError, LLMProvider, get_provider
 from tender_radar.db import init_db, make_engine, session_scope
 from tender_radar.matching.scorer import run_matching
-from tender_radar.models import BookletBrief, CompanyProfile, MatchResult, Tender
+from tender_radar.models import BookletAnswer, BookletBrief, CompanyProfile, MatchResult, Tender
+from tender_radar.reader.ask import answer_question
 from tender_radar.reader.brief import build_brief
 from tender_radar.reader.pdf_text import UnreadablePDF, extract_pages
 from tender_radar.regions import infer_region
 from tender_radar.repository import (
     get_brief,
+    get_pages,
     get_profile,
     get_tender,
     latest_brief,
     latest_brief_filename,
+    latest_brief_id,
+    list_answers,
     list_matches,
     list_profiles,
     list_tenders,
+    save_answer,
     save_brief,
     save_profile,
 )
@@ -235,10 +240,21 @@ def render_profile_form(profile: CompanyProfile, form: dict | None = None, error
     )
 
 
-def render_brief(brief: BookletBrief, filename: str, read_only: bool, static_files: bool = False) -> str:
-    """Brief page. In the static demo it lives in briefs/, one folder down."""
+def render_brief(
+    brief: BookletBrief,
+    filename: str,
+    read_only: bool,
+    static_files: bool = False,
+    qa: list[tuple[str, BookletAnswer]] | None = None,
+    brief_id: int | None = None,
+    can_ask: bool = False,
+    ask_error: str | None = None,
+) -> str:
+    """Brief page with its "Ask the booklet" questions. In the static demo it lives
+    in briefs/, one folder down, and shows the stored answers without the form."""
     return templates.get_template("brief.html").render(
-        brief=brief, filename=filename, links=_links(read_only, static_files, depth=1), has_sample_brief=False
+        brief=brief, filename=filename, links=_links(read_only, static_files, depth=1), has_sample_brief=False,
+        qa=qa or [], brief_id=brief_id, can_ask=can_ask and not read_only and brief_id is not None, ask_error=ask_error,
     )
 
 
@@ -300,22 +316,30 @@ def create_app(
     def get_ai() -> LLMProvider:
         return provider if provider is not None else get_provider(settings)
 
+    def brief_html(brief_id: int, ask_error: str | None = None) -> str | None:
+        with session_scope(engine) as s:
+            brief = get_brief(s, brief_id)
+            if brief is None:
+                return None
+            return render_brief(
+                brief, latest_brief_filename(s, brief_id) or "", read_only, qa=list_answers(s, brief_id),
+                brief_id=brief_id, can_ask=get_pages(s, brief_id) is not None, ask_error=ask_error,
+            )
+
     @app.get("/briefs/sample", response_class=HTMLResponse)
     def sample_brief() -> str:
         with session_scope(engine) as s:
-            found = latest_brief(s, SAMPLE_BOOKLET)
-        if found is None:
+            brief_id = latest_brief_id(s, SAMPLE_BOOKLET)
+        if brief_id is None:
             raise HTTPException(404, "No sample brief yet. Run: python -m tender_radar brief data/seed/sample_booklet.pdf")
-        return render_brief(found[1], found[0], read_only)
+        return brief_html(brief_id)
 
     @app.get("/briefs/{brief_id}", response_class=HTMLResponse)
     def brief_page(brief_id: int) -> str:
-        with session_scope(engine) as s:
-            brief = get_brief(s, brief_id)
-            filename = latest_brief_filename(s, brief_id)
-        if brief is None:
+        html = brief_html(brief_id)
+        if html is None:
             raise HTTPException(404, "Brief not found")
-        return render_brief(brief, filename or "", read_only)
+        return html
 
     if not read_only:
 
@@ -354,8 +378,26 @@ def create_app(
                 except (AIError, ValidationError):
                     message = "The AI could not read this booklet right now. Please try again later."
                     return HTMLResponse(render_reader(profiles, message), status_code=502)
-                brief_id = save_brief(s, filename, brief)
+                brief_id = save_brief(s, filename, brief, pages=pages)
             return RedirectResponse(f"/briefs/{brief_id}", status_code=303)
+
+        @app.post("/briefs/{brief_id}/ask", response_class=HTMLResponse)
+        def ask_booklet(brief_id: int, question: str = Form("")):
+            with session_scope(engine) as s:
+                pages = get_pages(s, brief_id)
+            if pages is None:
+                raise HTTPException(404, "No booklet text for this brief (upload the booklet again to ask questions).")
+            question = question.strip()[:500]
+            if not question:
+                return HTMLResponse(brief_html(brief_id, "Please type a question."), status_code=400)
+            try:
+                answer = answer_question(question, pages, get_ai())
+            except (AIError, ValidationError, ValueError):
+                return HTMLResponse(brief_html(brief_id, "The AI could not answer right now. Please try again later."), status_code=502)
+            with session_scope(engine) as s:
+                save_answer(s, brief_id, question, answer)
+            # Redirect after POST, so reloading the page does not ask (and spend an AI call) again.
+            return RedirectResponse(f"/briefs/{brief_id}#ask", status_code=303)
 
         @app.get("/c/{profile_id}/profile", response_class=HTMLResponse)
         def profile_page(profile_id: str) -> str:

@@ -4,6 +4,7 @@ Commands:
   seed    create the database and load the synthetic tenders and every demo company profile
   match   run the rule filter + AI scoring (all companies, or --profile ID)
   brief   summarise a tender booklet PDF into a bid brief
+  ask     ask questions about a booklet; answers cite the booklet page
   export  write the read-only static demo site (for GitHub Pages)
   digest  email today's best matches to yourself (or save a preview without SMTP)
   daily   the whole daily pipeline: fresh demo dates, match, sample brief, export, digest
@@ -25,15 +26,24 @@ from tender_radar.ai.provider import AIError, get_provider
 from tender_radar.db import init_db, make_engine, session_scope
 from tender_radar.matching.scorer import run_matching
 from tender_radar.models import SEED_ANCHOR, load_profile, load_seed_tenders, shift_dates
+from tender_radar.reader.ask import answer_question
 from tender_radar.reader.brief import build_brief
 from tender_radar.reader.pdf_text import UnreadablePDF, extract_pages
 from tender_radar.models import CompanyProfile
-from tender_radar.repository import first_profile, get_profile, list_profiles, save_brief, save_profile, upsert_tenders
+from tender_radar.repository import (
+    first_profile, get_profile, latest_brief_id, list_profiles, save_answer, save_brief, save_profile, upsert_tenders,
+)
 from tender_radar.settings import Settings
 
 ROOT = Path(__file__).resolve().parents[2]
 SEED_DIR = ROOT / "data" / "seed"
 SAMPLE_BOOKLET_PROFILE = "najd-digital"  # the sample booklet is an IT tender; judge it as the IT firm
+# Asked about the sample booklet every day, so the public demo shows "Ask the booklet" working.
+SAMPLE_QUESTIONS = [
+    "ما هي غرامة التأخير وما حدها الأقصى؟",
+    "هل يشترط الحصول على شهادة ISO 27001؟",
+    "What is the minimum technical score needed to pass?",
+]
 
 
 def _cmd_seed(args: argparse.Namespace, settings: Settings) -> int:
@@ -103,11 +113,43 @@ def _cmd_brief(args: argparse.Namespace, settings: Settings) -> int:
         except (AIError, ValidationError) as exc:
             print(f"The AI could not read this booklet right now ({exc}). Please try again later.")
             return 1
-        brief_id = save_brief(s, path.name, brief)
+        brief_id = save_brief(s, path.name, brief, pages=pages)
     engine.dispose()
     print(json.dumps(brief.model_dump(), ensure_ascii=False, indent=2))
     print(f"Saved as brief #{brief_id}")
     return 0
+
+
+def _cmd_ask(args: argparse.Namespace, settings: Settings) -> int:
+    """Answer questions about a booklet; store them on its newest brief, if there is one."""
+    path = Path(args.path)
+    try:
+        pages = extract_pages(path)
+    except UnreadablePDF as exc:
+        print(f"Cannot read {path.name}: {exc}")
+        return 1
+    provider = get_provider(settings)
+    engine = make_engine(settings.database_url)
+    init_db(engine)
+    failed = 0
+    for question in args.questions:
+        try:
+            answer = answer_question(question, pages, provider)
+        except (AIError, ValidationError) as exc:
+            print(f"Q: {question}")
+            print(f"The AI could not answer right now ({exc}).")
+            failed += 1
+            continue
+        pages_note = ", ".join(f"p. {n}" for n in answer.citations) or "no page cited"
+        print(f"Q: {question}")
+        print(f"A: {answer.answer}")
+        print(f"   [{pages_note}]")
+        with session_scope(engine) as s:
+            brief_id = latest_brief_id(s, path.name)
+            if brief_id is not None:
+                save_answer(s, brief_id, question, answer)
+    engine.dispose()
+    return 1 if failed == len(args.questions) else 0
 
 
 def _read_import_file(path: Path) -> str:
@@ -208,6 +250,7 @@ def _cmd_daily(args: argparse.Namespace, settings: Settings) -> int:
         ("seed", ["seed", "--rolling", "--today", today], True),
         ("match", ["match", "--today", today], False),
         ("brief", ["brief", str(SEED_DIR / "sample_booklet.pdf"), "--profile", SAMPLE_BOOKLET_PROFILE], False),
+        ("ask", ["ask", str(SEED_DIR / "sample_booklet.pdf"), *SAMPLE_QUESTIONS], False),
         ("export", ["export", "--out", args.out, "--today", today], True),
     ]
     if settings.smtp_configured:
@@ -262,6 +305,11 @@ def build_parser() -> argparse.ArgumentParser:
     brief.add_argument("path", help="path to the booklet PDF")
     brief.add_argument("--profile", help="company to check eligibility for (default: the first)")
     brief.set_defaults(handler=_cmd_brief)
+
+    ask = sub.add_parser("ask", help="ask questions about a booklet PDF (answers cite pages)")
+    ask.add_argument("path", help="path to the booklet PDF")
+    ask.add_argument("questions", nargs="+", help="one or more questions, in Arabic or English")
+    ask.set_defaults(handler=_cmd_ask)
 
     export = sub.add_parser("export", help="write the read-only static demo site")
     export.add_argument("--out", default="site", help="output folder (default: site)")

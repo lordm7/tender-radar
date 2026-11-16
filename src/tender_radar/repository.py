@@ -7,13 +7,14 @@ models from models.py. That keeps the database swappable and the code simple.
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from tender_radar.db import BriefRow, MatchRow, ProfileRow, TenderRow, _now
-from tender_radar.models import BookletBrief, CompanyProfile, MatchResult, Tender
+from tender_radar.db import BookletPagesRow, BriefRow, MatchRow, ProfileRow, QuestionRow, TenderRow, _now
+from tender_radar.models import BookletAnswer, BookletBrief, CompanyProfile, MatchResult, Tender
 
 _TENDER_FIELDS = list(Tender.model_fields)
 
@@ -139,11 +140,35 @@ def list_matches(session: Session, profile_id: str) -> list[MatchResult]:
     return [_match_from_row(r) for r in rows]
 
 
-def save_brief(session: Session, filename: str, brief: BookletBrief) -> int:
+def save_brief(session: Session, filename: str, brief: BookletBrief, pages: list[str] | None = None) -> int:
+    """Store a brief; with `pages`, also keep the booklet text for later questions."""
     row = BriefRow(filename=filename, json=brief.model_dump_json())
     session.add(row)
     session.flush()
+    if pages is not None:
+        session.add(BookletPagesRow(brief_id=row.id, pages_json=json.dumps(pages, ensure_ascii=False)))
     return row.id
+
+
+def get_pages(session: Session, brief_id: int) -> list[str] | None:
+    row = session.get(BookletPagesRow, brief_id)
+    return json.loads(row.pages_json) if row else None
+
+
+def save_answer(session: Session, brief_id: int, question: str, answer: BookletAnswer) -> None:
+    session.add(QuestionRow(brief_id=brief_id, question=question, json=answer.model_dump_json()))
+
+
+def list_answers(session: Session, brief_id: int) -> list[tuple[str, BookletAnswer]]:
+    """Questions asked about a brief and their answers, oldest first."""
+    rows = session.scalars(select(QuestionRow).where(QuestionRow.brief_id == brief_id).order_by(QuestionRow.id))
+    return [(r.question, BookletAnswer.model_validate_json(r.json)) for r in rows]
+
+
+def latest_brief_id(session: Session, filename: str) -> int | None:
+    """Id of the newest brief made from this file name."""
+    query = select(BriefRow.id).where(BriefRow.filename == filename).order_by(BriefRow.id.desc())
+    return session.scalars(query).first()
 
 
 def get_brief(session: Session, id: int) -> BookletBrief | None:

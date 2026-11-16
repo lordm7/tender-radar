@@ -69,9 +69,20 @@ def test_daily_checks_the_it_sample_booklet_against_the_it_company(tmp_path, mon
     fake = FakeProvider()
     monkeypatch.setattr(cli, "get_provider", lambda settings: fake)
     assert main(["daily", "--out", str(tmp_path / "site"), "--today", "2026-11-20"]) == 0
-    brief_prompt = fake.calls[-1]
+    brief_prompt = next(c for c in fake.calls if "one-page brief" in c)
     assert "Najd Digital Solutions" in brief_prompt
     assert "Al-Bunyan" not in brief_prompt
+
+
+def test_daily_asks_the_sample_questions_and_shows_them_in_the_demo(tmp_path, monkeypatch):
+    use_db(tmp_path, monkeypatch)
+    out = tmp_path / "site"
+    assert main(["daily", "--out", str(out), "--today", "2026-11-20"]) == 0
+    html = (out / "briefs" / "sample.html").read_text(encoding="utf-8")
+    assert "Ask the booklet" in html
+    for question in cli.SAMPLE_QUESTIONS:
+        assert question in html
+    assert "<form" not in html  # the static demo shows answers but cannot ask
 
 
 def test_daily_reports_its_status_for_the_deploy_gate(tmp_path, monkeypatch):
