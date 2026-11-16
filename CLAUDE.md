@@ -81,6 +81,7 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - After schema changes, delete old `*.db` files and re-seed (no migrations). A pre-Plan-2 `site/` folder has no export marker, so delete it before `export --out site`.
 - Bash heredocs mangle backslashes in Python code (`\b`, `\n`, Unicode escapes). Write code that contains backslashes with the Write/Edit tools only. Even the Edit tool turns `\u0600`-style escapes into the literal characters: compare code points (`0x0600 <= ord(ch)`) instead.
 - Headless screenshots: `"/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" --headless=new --window-size=1280,900 --screenshot=OUT.png URL` (the Chrome extension window can't be widened).
+- Checking JS changes in Chrome: the browser keeps a cached `app.js` even with a new page URL. Run `await fetch('<path>/static/app.js', {cache: 'reload'})` in the page, then reload, before testing.
 - `scripts/make_sample_booklet.py` needs Windows Arial (`C:/Windows/Fonts`) to render Arabic correctly.
 
 ## Pending
@@ -92,6 +93,7 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - [x] Calibrated scoring prompt (2026-11-16, one Gemini run): 26/26, tricky 6/6, fit scores spread 62–92. Old prompt: 25/26, tricky 6/6, every fit = 90. Fake AI: 19/26 (tricky 0/6). CV wording: "on a 26-tender labelled set the pipeline matched human bid decisions 26/26, including 6 look-alike no-bid traps the keyword rules let through".
 - [x] Plan 2 built on branch feat/plan2 (2026-11-15): Etimad-shaped data, smarter rules, private importer, two companies, rolling demo, digest, daily workflow, README. 134 tests. Final review fixes done; deferred minors are in the Plan 2 ledger.
 - [x] Redesign built on `feat/redesign` (2026-11-16, plan `docs/superpowers/plans/2026-11-16-tender-radar-redesign.md`), final review fixes done, 200 tests. NOT merged/pushed: the user reviews it, gives the LinkedIn URL, then merges.
+- [ ] NEXT (user, 2026-11-17): more redesign changes are coming first; the LinkedIn URL arrives once the project is finished. Don't merge `feat/redesign` until the user says so.
 - [ ] Redesign deferred minors (ledger `.superpowers/sdd/2026-11-16-tender-radar-redesign/progress.md`): orig tag lost in JS select, filter hides selected tender, brief lang switch on old sample briefs, `_orig` isascii guess, profile form `date.today()`, Arabic words in English AI reasons
 - [ ] User decisions: make repo public (for Pages), Gmail app password for the digest, OK to store GEMINI_API_KEY as a GitHub secret, send the Etimad letter
 - [x] Plan 3 built on branch `feat/plan3` (2026-11-16): Ask the booklet, calibrated eval, README update, video script (`docs/demo-video-script.md`). 154 tests. Merged into main and pushed 2026-11-16 (3aa51df), CI green.
