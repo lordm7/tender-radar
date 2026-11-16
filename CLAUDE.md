@@ -14,12 +14,12 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - **Load demo data:** `python -m tender_radar seed [--rolling]` (loads every `data/seed/profile_*.json`)
 - **Run matching:** `python -m tender_radar match [--profile ID] [--today YYYY-MM-DD]`
 - **Read a booklet:** `python -m tender_radar brief data/seed/sample_booklet.pdf [--profile ID]`
-- **Ask the booklet:** `python -m tender_radar ask BOOKLET.pdf "question" ["question" ...]` (stored on that file's newest brief)
+- **Ask the booklet:** `python -m tender_radar ask BOOKLET.pdf "question" ["question" ...] [--lang en|ar]` (stored on that file's newest brief; language guessed from the question)
 - **Import real tenders (private):** `python -m tender_radar import FILE.txt|FILE.html`
 - **Export the static demo:** `python -m tender_radar export --out site` (seed tenders only)
 - **Email digest:** `python -m tender_radar digest [--dry-run]` (previews go to git-ignored `digests/`)
 - **Whole daily pipeline:** `python -m tender_radar daily --out site` (what `.github/workflows/daily.yml` runs)
-- **Run the dev server:** `uvicorn tender_radar.web.app:create_app --factory`
+- **Run the dev server:** `python -m uvicorn tender_radar.web.app:create_app --factory` → http://127.0.0.1:8000/en/ (the `.venv/Scripts/uvicorn` exe is blocked under Git Bash; use `python -m`)
 - **Test:** `.venv/Scripts/python -m pytest -q` (uses the fake AI only, no keys)
 - **CI:** `.github/workflows/ci.yml` (pytest on Python 3.12); `daily.yml` (03:00 UTC, deploys Pages only if repo public + Gemini key + scored_total > 0)
 
@@ -34,7 +34,7 @@ The owner designs the system and directs AI coding agents, and must be able to e
   - `matching/`: `rules.py` (free filter), `scorer.py` (AI scoring + cache)
   - `ai/`: the provider interface, FakeProvider and Gemini
   - `reader/`: PDF → brief; `reader/ask.py` = Ask the booklet (keyword page retrieval + cited answer)
-  - `web/`: FastAPI app and templates
+  - `web/`: FastAPI app (`app.py`: routes, `Links`, render_* functions), templates, `static/app.css` + `app.js`, `i18n.py` (every UI string en/ar, VOCAB, dates, money, rule reasons)
   - `export/`: static site (clears only folders holding its `.tender-radar-export` marker)
   - `importer/`: Etimad copied text / saved HTML → tenders (source="etimad-import")
   - `regions.py`: region inferred from the agency name
@@ -63,16 +63,23 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - AI results are cached per (tender content hash, profile version + prompt fingerprint) — editing `score_tender.md` re-scores everything. "unscored" results are retried on the next run.
 - **Ask the booklet:** booklet pages are stored with the brief (`booklet_pages` table); a short booklet (≤20k chars) goes to the AI whole, a long one is ranked by Arabic-aware keyword IDF. Citations of pages the AI wasn't shown are dropped; a "found" answer with no valid citation is downgraded to not-found. The daily job asks 3 fixed sample questions (`SAMPLE_QUESTIONS` in `__main__.py`) so the static demo shows answers.
 - **Privacy rule (Plan 2):** only `source == "seed"` tenders appear in read-only views or the export (`is_public()` in web/app.py). Seed references start `00000000` so they never clash with real Etimad numbers.
-- **Routes:** each company lives under `/c/<id>/` (dashboard, `tenders/<ref>`, `profile`); `/` = company chooser (redirects when only one). Static export: `index.html`, `c/<id>/…`, `briefs/sample.html`.
+- **Routes (redesign, 2026-11-16):** every page is `/{lang}/…` with lang en|ar: `/{lang}/` home, `/{lang}/companies` (307 to the dashboard when only one company), `/{lang}/c/<id>/` matches, `…/tenders/<ref>`, `…/profile`, `/{lang}/reader`, `/{lang}/briefs/<id>|sample`. `/` redirects to the `tr_lang` cookie language (else en). Old `/c/…`, `/reader`, `/briefs/…` 307 to `/en/…`. Static export: `index.html` (meta refresh to en/), `{lang}/index.html`, `{lang}/companies.html`, `{lang}/c/<id>/…`, `{lang}/briefs/sample.html`, shared `static/`.
 - The daily sample brief is always judged as `najd-digital` (the booklet is an IT tender).
-- **Redesign (chosen by the user, built later):** dark, calm, professional style with a small radar brand mark; keep FastAPI + Jinja + vanilla JS (no React); one language per page (`/en/…`, `/ar/…`, Arabic = full RTL); rename "Company profile" → "Bidding profile" (ملف المنافسة); a new home/about page; own CSS file replaces the Tailwind CDN.
+- **Redesign (built 2026-11-16 on `feat/redesign`, not merged):** dark, calm style with a radar brand mark; FastAPI + Jinja + vanilla JS; one language per page (Arabic = full RTL); "Bidding profile" (ملف المنافسة); home/about page (always public-only; its preview shows the first company by id); own `app.css` replaces Tailwind.
+  - **Bilingual data:** tenders carry `title_en/agency_en/description_en` (`ENGLISH_FIELDS`), excluded from the content hash so translating never re-scores. The scoring call also returns the English title/agency (`set_tender_english`). Briefs carry an `en` copy (`BookletBrief.in_lang`); old Arabic-only briefs show the Arabic original marked `lang="ar"` with an "Arabic original" tag. Profiles have `name_ar` (not part of the version).
+  - **One-language rule:** English pages show no Arabic and Arabic pages no Latin, except elements marked with the other `lang` (originals, the author name, GitHub/LinkedIn, EN switch) and ISO/PDF/iOS/Android/ERP. `tests/test_export.py` enforces it on every exported page.
+  - **Q&A per language:** answers are stored with `lang`; the daily job asks 3 English + 3 Arabic `SAMPLE_QUESTIONS` (a dict per language).
+  - **Old databases:** `init_db` adds missing nullable columns (ALTER TABLE), so no re-seed is needed after this schema change.
+  - **Constants to keep current:** `LINKEDIN_URL` (placeholder) and `EVAL_AGREEMENT = "26 / 26"` in `web/app.py`.
+- **AI retries:** one-off calls (brief, ask) go through `call_with_retry` (waits 20s, 40s on 429/503). Tests patch `tender_radar.ai.provider._sleep` in conftest so they never wait.
 
 ## Gotchas (Windows machine)
 - Windows Application Control blocks SQLAlchemy's compiled `.pyd`. Install it pure-Python: `DISABLE_SQLALCHEMY_CEXT=1 pip install --force-reinstall --no-deps --no-binary sqlalchemy sqlalchemy==2.1.8`
 - Under Git Bash, `TR_DATABASE_URL` must use a relative or `C:/` path (`sqlite:///.superpowers/dev.db`), not `/c/...`.
 - The Windows console isn't UTF-8. The CLI reconfigures stdout; for ad-hoc scripts, set `PYTHONIOENCODING=utf-8`.
 - After schema changes, delete old `*.db` files and re-seed (no migrations). A pre-Plan-2 `site/` folder has no export marker, so delete it before `export --out site`.
-- Bash heredocs mangle backslashes in Python code (`\b`, `\n`, Unicode escapes). Write code that contains backslashes with the Write/Edit tools only.
+- Bash heredocs mangle backslashes in Python code (`\b`, `\n`, Unicode escapes). Write code that contains backslashes with the Write/Edit tools only. Even the Edit tool turns `\u0600`-style escapes into the literal characters: compare code points (`0x0600 <= ord(ch)`) instead.
+- Headless screenshots: `"/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" --headless=new --window-size=1280,900 --screenshot=OUT.png URL` (the Chrome extension window can't be widened).
 - `scripts/make_sample_booklet.py` needs Windows Arial (`C:/Windows/Fonts`) to render Arabic correctly.
 
 ## Pending
@@ -83,7 +90,7 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - [x] 6 tricky eval tenders added (2026-11-16). Labels marked `"proposed": true` — the user must confirm them.
 - [x] Calibrated scoring prompt (2026-11-16, one Gemini run): 26/26, tricky 6/6, fit scores spread 62–92. Old prompt: 25/26, tricky 6/6, every fit = 90. Fake AI: 19/26 (tricky 0/6). CV wording: "on a 26-tender labelled set the pipeline matched human bid decisions 26/26, including 6 look-alike no-bid traps the keyword rules let through".
 - [x] Plan 2 built on branch feat/plan2 (2026-11-15): Etimad-shaped data, smarter rules, private importer, two companies, rolling demo, digest, daily workflow, README. 134 tests. Final review fixes done; deferred minors are in the Plan 2 ledger.
-- [ ] Redesign (PARKED 2026-11-15 by the user until everything else is done): spec `docs/superpowers/specs/2026-11-15-tender-radar-redesign-design.md` + mockups (incl. all pages in `.superpowers/brainstorm/.../content/all-pages.html`), branch `feat/redesign`. Needs user approval + LinkedIn URL, then writing-plans.
+- [x] Redesign built on `feat/redesign` (2026-11-16, plan `docs/superpowers/plans/2026-11-16-tender-radar-redesign.md`), 198 tests. NOT merged/pushed: the user reviews it, gives the LinkedIn URL, then merges.
 - [ ] User decisions: make repo public (for Pages), Gmail app password for the digest, OK to store GEMINI_API_KEY as a GitHub secret, send the Etimad letter
 - [x] Plan 3 built on branch `feat/plan3` (2026-11-16): Ask the booklet, calibrated eval, README update, video script (`docs/demo-video-script.md`). 154 tests. Merged into main and pushed 2026-11-16 (3aa51df), CI green.
 - [ ] Record the 2-minute video (the user does it, following the script)

@@ -16,12 +16,13 @@ Built for Saudi B2B companies: thousands of tenders appear on [Etimad](https://t
 | **Several companies** | The same tenders are matched against each company's profile. The demo has an IT services firm and a contracting & maintenance firm. |
 | **Read a booklet** | Upload a tender booklet PDF (كراسة الشروط) and get the scope, deliverables, key dates, eligibility, required documents, evaluation criteria and risks. You also get a go/no-go checklist against the company's certifications. |
 | **Ask the booklet** | Ask a question in Arabic or English ("What is the late-delivery penalty?") and get a short answer from the booklet itself, with the page it came from. If the booklet doesn't say, it says so instead of guessing. |
+| **English or Arabic** | Every page exists in English (`/en/…`) and in Arabic (`/ar/…`, full right-to-left). The switch keeps you on the same page. Tender titles are translated by the same AI call that scores them, so translation costs nothing extra. |
 | **Daily, hands-free** | A GitHub Actions job runs every morning: fresh demo dates → matching → booklet brief → sample booklet questions → static demo → email digest. |
 | **Import real tenders (private)** | Copy or save the public Etimad list in your browser; `import` turns it into tenders. Imported tenders are never published: they stay in your local database, go to your AI provider only for scoring, and reach only your own inbox. |
 
-| Company chooser | Tender detail | Booklet brief |
+| Arabic matches page | Tender detail | Booklet brief |
 |---|---|---|
-| ![](docs/screenshots/companies.png) | ![](docs/screenshots/tender.png) | ![](docs/screenshots/brief.png) |
+| ![](docs/screenshots/matches-ar.png) | ![](docs/screenshots/tender.png) | ![](docs/screenshots/brief.png) |
 
 ## Architecture
 
@@ -52,8 +53,8 @@ flowchart LR
 - **Cheap before smart.** The rules reject roughly 70% of tenders for free. The AI only sees the plausible ones.
 - **Never pay twice.** Each AI verdict is cached per (tender content, profile version, prompt version). A tender is re-scored only if it, the profile or the scoring prompt changes.
 - **Answers you can check.** "Ask the booklet" is a small retrieval-augmented (RAG) step. A short booklet goes to the AI whole; a long one is ranked page by page with Arabic-aware keyword matching and only the best pages are sent. The AI must cite page numbers. Citations of pages it was never shown are dropped, and an answer with no valid citation is shown as "not stated", never as fact.
-- **Fails soft.** If the AI is down (503) or rate-limited (429), the tender is stored as *not scored* and retried on the next run. After repeated rate limits the run stops calling the AI. The demo is always rebuilt.
-- **One page function, two outputs.** The live app and the static demo render through the same functions. The export only switches links to relative `.html` files and removes forms.
+- **Fails soft.** If the AI is down (503) or rate-limited (429), the tender is stored as *not scored* and retried on the next run. After repeated rate limits the run stops calling the AI. One-off calls (brief, questions) wait 20s, then 40s, and try again. The demo is always rebuilt.
+- **One page function, four outputs.** The live app and the static demo, in English and Arabic, render through the same functions. Every UI string lives in one dictionary (`web/i18n.py`); the export only switches links to relative `.html` files and removes forms. Tests check that every exported link resolves and that English pages contain no Arabic (and the reverse), apart from clearly marked Arabic originals.
 - **Swappable AI.** One `LLMProvider` interface. `FakeProvider` is used by tests (no network, no keys); `GeminiProvider` returns schema-validated JSON with a 60-second timeout.
 
 Code map: `src/tender_radar/`
@@ -64,7 +65,7 @@ Code map: `src/tender_radar/`
 - `ai/`: providers
 - `reader/`: PDF → brief, and Ask the booklet (`ask.py`)
 - `importer/`: Etimad text/HTML
-- `web/`: FastAPI app and templates
+- `web/`: FastAPI app, templates, own stylesheet, and `i18n.py` (every UI string in English and Arabic)
 - `export/`: static site
 - `digest.py`: email
 - `__main__.py`: CLI
@@ -80,7 +81,7 @@ python -m tender_radar seed                 # synthetic tenders + two demo compa
 python -m tender_radar match                # rules + AI (the "fake" AI unless you add a key)
 python -m tender_radar brief data/seed/sample_booklet.pdf
 python -m tender_radar ask data/seed/sample_booklet.pdf "ما هي غرامة التأخير؟"
-uvicorn tender_radar.web.app:create_app --factory   # http://127.0.0.1:8000
+uvicorn tender_radar.web.app:create_app --factory   # http://127.0.0.1:8000/en/ (or /ar/)
 ```
 
 | Command | What it does |
@@ -88,9 +89,9 @@ uvicorn tender_radar.web.app:create_app --factory   # http://127.0.0.1:8000
 | `seed [--rolling]` | Load demo data. `--rolling` moves every date so the demo is always current. |
 | `match [--profile ID]` | Score tenders for every company, or one. |
 | `brief PDF [--profile ID]` | Summarise a booklet and check eligibility. |
-| `ask PDF "question"...` | Answer questions from a booklet, citing pages. Saved on that booklet's newest brief. |
+| `ask PDF "question"... [--lang en\|ar]` | Answer questions from a booklet, citing pages. Saved on that booklet's newest brief and shown on the pages of that language (guessed from the question by default). |
 | `import FILE...` | Import Etimad list text (`.txt`, copied with Ctrl+A, Ctrl+C) or a saved page (`.html`). |
-| `export --out site` | Write the read-only demo (seed tenders only). |
+| `export --out site` | Write the read-only demo (seed tenders only): `site/en/…` and `site/ar/…`, plus a root page that opens the English home. |
 | `digest [--dry-run]` | Email today's best matches to yourself; without SMTP it saves an HTML preview. |
 | `daily --out site` | Everything above, in order. This is what GitHub Actions runs. |
 
@@ -99,13 +100,13 @@ uvicorn tender_radar.web.app:create_app --factory   # http://127.0.0.1:8000
 - **Email:** `TR_SMTP_*` and `TR_DIGEST_TO`. For Gmail use an app password.
 - **Database:** `TR_DATABASE_URL` (SQLite by default).
 
-> Upgrading from an older checkout: delete old `*.db` files and any `site/` folder made by an earlier version, then run `seed` again. The export only clears folders it created itself.
+> Upgrading from an older checkout: an old database gets the new columns automatically. Delete any `site/` folder made by a version before the export marker, and run `seed` again. Old links (`/c/…`, `/reader`, `/briefs/…`) redirect to the English pages.
 
-**Tests:** `pytest -q` (154 tests; they use the fake AI and never touch the network or send email).
+**Tests:** `pytest -q` (198 tests; they use the fake AI and never touch the network or send email).
 
 ## Cost: zero
 
-- **AI:** Gemini free tier. About 15 scoring calls, 1 brief and 3 booklet questions per day for the demo, well under the free quota.
+- **AI:** Gemini free tier. About 15 scoring calls (each also returns the English title), 1 brief and 6 booklet questions (3 per language) per day for the demo, well under the free quota.
 - **Hosting:** GitHub Actions and GitHub Pages (free for public repos).
 - **Static demo:** precomputed, so visitors never trigger an AI call and the page is never "asleep".
 
@@ -156,4 +157,5 @@ So the defensible claim is *"on a 26-tender labelled set, including 6 look-alike
 - [x] "Ask the booklet": questions answered from the booklet, with page citations
 - [x] Calibrate scoring with harder evaluation cases
 - [ ] Official data source once permission or open data is available
-- [ ] Visual design refresh (dark, bilingual `/en` and `/ar` pages) and a 2-minute demo video
+- [x] Visual design refresh: dark, calm style, a fit radar, separate English and Arabic pages
+- [ ] A 2-minute demo video
