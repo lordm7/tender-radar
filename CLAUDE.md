@@ -85,5 +85,6 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - [x] Plan 2 built on branch feat/plan2 (2026-11-15): Etimad-shaped data, smarter rules, private importer, two companies, rolling demo, digest, daily workflow, README. 134 tests. Final review fixes done; deferred minors are in the Plan 2 ledger.
 - [ ] Redesign (PARKED 2026-11-15 by the user until everything else is done): spec `docs/superpowers/specs/2026-11-15-tender-radar-redesign-design.md` + mockups (incl. all pages in `.superpowers/brainstorm/.../content/all-pages.html`), branch `feat/redesign`. Needs user approval + LinkedIn URL, then writing-plans.
 - [ ] User decisions: make repo public (for Pages), Gmail app password for the digest, OK to store GEMINI_API_KEY as a GitHub secret, send the Etimad letter
-- [ ] Plan 3: README with an architecture diagram and "what I did / what AI did", the 2-minute video, "Ask the booklet"
+- [x] Plan 3 built on branch `feat/plan3` (2026-11-16): Ask the booklet, calibrated eval, README update, video script (`docs/demo-video-script.md`). 154 tests. Not merged or pushed yet.
+- [ ] Record the 2-minute video (the user does it, following the script)
 - [ ] Parked: door-pricing BOQ → Quote assistant (waiting on the father's answers; the questions are in the design appendix)
