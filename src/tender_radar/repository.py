@@ -58,9 +58,13 @@ def upsert_tenders(session: Session, tenders: list[Tender]) -> UpsertStats:
                     setattr(row, f, getattr(t, f))
             stats.unchanged += 1
         else:
+            before = {f.removesuffix("_en"): getattr(row, f.removesuffix("_en")) for f in ENGLISH_FIELDS}
             for f in _TENDER_FIELDS:
                 if f in ENGLISH_FIELDS and not getattr(t, f):
-                    continue  # keep stored English until a real translation replaces it
+                    arabic = f.removesuffix("_en")  # title_en follows title, agency_en follows agency
+                    if before[arabic] != getattr(t, arabic):
+                        setattr(row, f, None)  # the Arabic changed: the old translation is stale
+                    continue  # otherwise keep stored English until a real translation replaces it
                 setattr(row, f, getattr(t, f))
             row.content_hash = new_hash
             row.updated_at = _now()

@@ -29,9 +29,15 @@
     dots.forEach((d) => d.classList.toggle("sel", d.dataset.ref === ref));
   }
 
+  // On a phone the layout is stacked and the "Selected tender" panel is off-screen,
+  // so a tap simply opens the tender.
+  const stacked = window.matchMedia("(max-width: 960px)");
   rows.forEach((row) => {
     row.addEventListener("click", (e) => {
       if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; // let "open in new tab" work
+      const keyboard = e.detail === 0; // Enter on a focused row: open it, like any link
+      const again = row.classList.contains("sel"); // a second click on the selected row opens it
+      if (keyboard || again || stacked.matches) return;
       e.preventDefault();
       select(row.dataset.reference);
     });

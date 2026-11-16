@@ -101,3 +101,31 @@ def test_answers_filtered_by_language(engine):
         assert [q for q, _ in list_answers(s, brief_id, lang="en")] == ["What is the penalty?"]
         assert [q for q, _ in list_answers(s, brief_id, lang="ar")] == ["ما الغرامة؟"]
         assert len(list_answers(s, brief_id)) == 2
+
+
+def test_amended_tender_drops_its_stale_english_title(engine):
+    """Etimad amends the Arabic title: the old AI translation must not survive it."""
+    with session_scope(engine) as s:
+        upsert_tenders(s, [tender()])
+        set_tender_english(s, "R1", "OLD TITLE", "AI agency")
+    with session_scope(engine) as s:
+        assert upsert_tenders(s, [tender(title="تطوير منصة معدلة")]).updated == 1
+        set_tender_english(s, "R1", "NEW TITLE", "Other agency")  # what the re-score returns
+    with session_scope(engine) as s:
+        t = get_tender(s, "R1")
+    assert t.title_en == "NEW TITLE"
+    assert t.agency_en == "AI agency"  # the agency did not change, so its translation stays
+
+
+def test_questions_asked_before_the_redesign_still_show(engine):
+    """Old rows get lang=NULL from the column top-up; init_db fills it from the question's script."""
+    with session_scope(engine) as s:
+        brief_id = save_brief(s, "b.pdf", BookletBrief(scope="x"))
+        save_answer(s, brief_id, "What is the penalty?", BookletAnswer(answer="1%"), lang="en")
+        save_answer(s, brief_id, "ما الغرامة؟", BookletAnswer(answer="1%"), lang="ar")
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE booklet_questions SET lang = NULL"))
+    init_db(engine)
+    with session_scope(engine) as s:
+        assert [q for q, _ in list_answers(s, brief_id, lang="en")] == ["What is the penalty?"]
+        assert [q for q, _ in list_answers(s, brief_id, lang="ar")] == ["ما الغرامة؟"]

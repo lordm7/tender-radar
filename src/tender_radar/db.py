@@ -118,6 +118,12 @@ def init_db(engine: Engine) -> None:
                 if column.name not in have and column.nullable:
                     kind = column.type.compile(engine.dialect)
                     conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {kind}'))
+        # Questions asked before answers had a language: guess it from the question's letters,
+        # so they still show on the English or Arabic page.
+        old = conn.execute(text("SELECT id, question FROM booklet_questions WHERE lang IS NULL")).all()
+        for qid, question in old:
+            lang = "ar" if any(0x0600 <= ord(ch) <= 0x06FF for ch in question or "") else "en"
+            conn.execute(text("UPDATE booklet_questions SET lang = :lang WHERE id = :id"), {"lang": lang, "id": qid})
 
 
 @contextmanager
