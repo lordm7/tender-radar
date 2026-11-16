@@ -25,6 +25,7 @@ The owner designs the system and directs AI coding agents, and must be able to e
 ## Key Paths
 - GitHub: https://github.com/lordm7/tender-radar (PRIVATE for now; make public once the README and real AI results are ready). Commits use the GitHub noreply email.
 - Design: `docs/superpowers/specs/2026-11-15-tender-radar-design.md`
+- Redesign spec (parked): `docs/superpowers/specs/2026-11-15-tender-radar-redesign-design.md`; approved mockups in `docs/superpowers/specs/mockups/` (home, matches, language-modes); all-pages draft in `.superpowers/brainstorm/1586-1794759980/content/all-pages.html` (git-ignored)
 - Plans: `docs/superpowers/plans/` (Plan 1 = core, done; Plan 2 = live Etimad data + deploy; Plan 3 = showcase)
 - Package: `src/tender_radar/`
   - `models.py`: data shapes
@@ -62,12 +63,14 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - **Privacy rule (Plan 2):** only `source == "seed"` tenders appear in read-only views or the export (`is_public()` in web/app.py). Seed references start `00000000` so they never clash with real Etimad numbers.
 - **Routes:** each company lives under `/c/<id>/` (dashboard, `tenders/<ref>`, `profile`); `/` = company chooser (redirects when only one). Static export: `index.html`, `c/<id>/…`, `briefs/sample.html`.
 - The daily sample brief is always judged as `najd-digital` (the booklet is an IT tender).
+- **Redesign (chosen by the user, built later):** dark, calm, professional style with a small radar brand mark; keep FastAPI + Jinja + vanilla JS (no React); one language per page (`/en/…`, `/ar/…`, Arabic = full RTL); rename "Company profile" → "Bidding profile" (ملف المنافسة); a new home/about page; own CSS file replaces the Tailwind CDN.
 
 ## Gotchas (Windows machine)
 - Windows Application Control blocks SQLAlchemy's compiled `.pyd`. Install it pure-Python: `DISABLE_SQLALCHEMY_CEXT=1 pip install --force-reinstall --no-deps --no-binary sqlalchemy sqlalchemy==2.1.8`
 - Under Git Bash, `TR_DATABASE_URL` must use a relative or `C:/` path (`sqlite:///.superpowers/dev.db`), not `/c/...`.
 - The Windows console isn't UTF-8. The CLI reconfigures stdout; for ad-hoc scripts, set `PYTHONIOENCODING=utf-8`.
 - After schema changes, delete old `*.db` files and re-seed (no migrations). A pre-Plan-2 `site/` folder has no export marker, so delete it before `export --out site`.
+- Bash heredocs mangle backslashes in Python code (`\b`, `\n`, Unicode escapes). Write code that contains backslashes with the Write/Edit tools only.
 - `scripts/make_sample_booklet.py` needs Windows Arial (`C:/Windows/Fonts`) to render Arabic correctly.
 
 ## Pending
@@ -77,6 +80,7 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - [x] Eval: 19/20 = 95% agreement with the user's labels. CAVEAT: the fake AI (always 70) also scores 95%, so the set mostly tests the rule filter. CV wording: "pipeline matched human bid decisions on 19/20", NOT "AI is 95% accurate".
 - [ ] Add ~6 tricky eval tenders that pass the rules but shouldn't be bid on (hardware-only supply, missing certification, out-of-scope consulting) so the eval really tests the AI
 - [x] Plan 2 built on branch feat/plan2 (2026-11-15): Etimad-shaped data, smarter rules, private importer, two companies, rolling demo, digest, daily workflow, README. 134 tests. Final review fixes done; deferred minors are in the Plan 2 ledger.
+- [ ] Redesign (PARKED 2026-11-15 by the user until everything else is done): spec `docs/superpowers/specs/2026-11-15-tender-radar-redesign-design.md` + mockups (incl. all pages in `.superpowers/brainstorm/.../content/all-pages.html`), branch `feat/redesign`. Needs user approval + LinkedIn URL, then writing-plans.
 - [ ] User decisions: make repo public (for Pages), Gmail app password for the digest, OK to store GEMINI_API_KEY as a GitHub secret, send the Etimad letter
 - [ ] Gemini flash-lite scores almost every plausible tender 85–90; calibrate with tricky eval cases
 - [ ] Plan 3: README with an architecture diagram and "what I did / what AI did", the 2-minute video, "Ask the booklet"
