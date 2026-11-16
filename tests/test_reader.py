@@ -115,3 +115,32 @@ def test_pdf_with_no_pages_has_its_own_message(tmp_path, monkeypatch):
     path.write_bytes(b"%PDF-1.7")
     with pytest.raises(pdf_text.UnreadablePDF, match="The PDF has no pages"):
         pdf_text.extract_pages(path)
+
+
+# --- bilingual brief (redesign) ---------------------------------------------
+
+def test_old_brief_without_english_still_loads_and_falls_back_to_arabic():
+    from tender_radar.models import BookletBrief
+
+    old = BookletBrief.model_validate_json('{"scope": "نطاق العمل", "risks": ["غرامة"]}')
+    text, original = old.in_lang("en")
+    assert original is True and text.scope == "نطاق العمل"
+    text, original = old.in_lang("ar")
+    assert original is False and text.risks == ["غرامة"]
+
+
+def test_brief_with_english_shows_english():
+    from tender_radar.models import BookletBrief, BriefText, ChecklistItem
+
+    brief = BookletBrief(
+        scope="نطاق", en=BriefText(scope="Scope", go_no_go=[ChecklistItem(item="ISO 27001", status="meets")])
+    )
+    text, original = brief.in_lang("en")
+    assert original is False and text.scope == "Scope" and text.go_no_go[0].status == "meets"
+
+
+def test_brief_prompt_asks_for_an_english_copy():
+    from importlib import resources
+
+    template = resources.files("tender_radar.prompts").joinpath("booklet_brief.md").read_text(encoding="utf-8")
+    assert "en:" in template

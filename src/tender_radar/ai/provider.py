@@ -12,7 +12,7 @@ from typing import Protocol, TypeVar
 
 from pydantic import BaseModel
 
-from tender_radar.models import AIScore, BookletAnswer, BookletBrief, ChecklistItem
+from tender_radar.models import AIScore, BookletAnswer, BookletBrief, BriefText, ChecklistItem
 from tender_radar.settings import Settings
 
 T = TypeVar("T", bound=BaseModel)
@@ -34,7 +34,8 @@ _DEFAULTS: dict[type[BaseModel], BaseModel] = {
     AIScore: AIScore(score=70, reasons_en=["fake"], reasons_ar=["تجريبي"]),
     BookletBrief: BookletBrief(
         scope="ملخص تجريبي",
-        go_no_go=[ChecklistItem(item="ISO 27001", status="meets", note="fake")],
+        go_no_go=[ChecklistItem(item="ISO 27001", status="meets", note="تجريبي")],
+        en=BriefText(scope="Fake summary", go_no_go=[ChecklistItem(item="ISO 27001", status="meets", note="fake")]),
     ),
     BookletAnswer: BookletAnswer(answer="إجابة تجريبية", citations=[1], found=True),
 }

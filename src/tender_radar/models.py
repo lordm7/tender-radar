@@ -105,8 +105,8 @@ class ChecklistItem(BaseModel):
     note: str = ""
 
 
-class BookletBrief(BaseModel):
-    """The one-page summary the AI writes from a tender booklet."""
+class BriefText(BaseModel):
+    """The text of a brief in one language."""
 
     scope: str
     deliverables: list[str] = []
@@ -116,7 +116,23 @@ class BookletBrief(BaseModel):
     evaluation_criteria: list[str] = []
     risks: list[str] = []
     go_no_go: list[ChecklistItem] = []
+
+
+class BookletBrief(BriefText):
+    """The one-page summary the AI writes from a tender booklet.
+
+    The main fields are Arabic. `en` is the same brief in English, written in
+    the same AI call; briefs stored before it existed simply have none.
+    """
+
+    en: BriefText | None = None
     truncated: bool = False
+
+    def in_lang(self, lang: str) -> tuple[BriefText, bool]:
+        """The text to show on a page in `lang`, and whether it is the Arabic original."""
+        if lang == "en":
+            return (self.en, False) if self.en is not None else (self, True)
+        return self, False
 
 
 class BookletAnswer(BaseModel):

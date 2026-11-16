@@ -14,6 +14,8 @@ Fill these fields:
   - status "check" if it is unclear and a person must confirm
   with a short Arabic note explaining why.
 
+- en: the whole brief again in clear English (the same fields: scope, deliverables, key_dates, eligibility, required_documents, evaluation_criteria, risks, go_no_go with the same statuses), for English-speaking readers. Translate; add nothing.
+
 Use only facts from the booklet and the profile. If something is not stated, leave it out rather than guessing. Mention the page when it helps, e.g. "(ص 3)".
 
 Company profile (JSON):
