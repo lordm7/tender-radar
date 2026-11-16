@@ -2,7 +2,11 @@
   "_note": "synthetic demo data - a fictional company, not a real business",
   "id": "najd-digital",
   "name": "Najd Digital Solutions (synthetic)",
-  "activities": ["تقنية المعلومات", "الاتصالات"],
+  "name_ar": "نجد للحلول الرقمية (بيانات تجريبية)",
+  "activities": [
+    "تقنية المعلومات",
+    "الاتصالات"
+  ],
   "keywords": [
     "برمجيات",
     "سيبراني",
@@ -17,9 +21,20 @@
     "cloud",
     "cybersecurity"
   ],
-  "certifications": ["ISO 27001", "ISO 9001", "شهادة الزكاة والضريبة", "شهادة السعودة"],
+  "certifications": [
+    "ISO 27001",
+    "ISO 9001",
+    "شهادة الزكاة والضريبة",
+    "شهادة السعودة"
+  ],
   "min_value_sar": 200000,
   "max_value_sar": 20000000,
-  "regions": ["الرياض", "المنطقة الشرقية", "مكة المكرمة"],
-  "excluded_agencies": ["هيئة الموارد الإقليمية"]
+  "regions": [
+    "الرياض",
+    "المنطقة الشرقية",
+    "مكة المكرمة"
+  ],
+  "excluded_agencies": [
+    "هيئة الموارد الإقليمية"
+  ]
 }

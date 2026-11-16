@@ -14,7 +14,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from tender_radar.db import BookletPagesRow, BriefRow, MatchRow, ProfileRow, QuestionRow, TenderRow, _now
-from tender_radar.models import BookletAnswer, BookletBrief, CompanyProfile, MatchResult, Tender
+from tender_radar.models import ENGLISH_FIELDS, BookletAnswer, BookletBrief, CompanyProfile, MatchResult, Tender
 
 _TENDER_FIELDS = list(Tender.model_fields)
 
@@ -27,8 +27,12 @@ class UpsertStats:
 
 
 def tender_content_hash(t: Tender) -> str:
-    """Fingerprint of a tender's content; it changes when any field changes."""
-    return hashlib.sha256(t.model_dump_json().encode("utf-8")).hexdigest()[:16]
+    """Fingerprint of a tender's content; it changes when any field changes.
+
+    The English translations are left out: adding them (by hand or by the AI)
+    is not new content, so it must not throw away scores or trigger re-scoring.
+    """
+    return hashlib.sha256(t.model_dump_json(exclude=set(ENGLISH_FIELDS)).encode("utf-8")).hexdigest()[:16]
 
 
 def _tender_from_row(row: TenderRow) -> Tender:
@@ -49,9 +53,14 @@ def upsert_tenders(session: Session, tenders: list[Tender]) -> UpsertStats:
             session.add(TenderRow(**t.model_dump(), content_hash=new_hash))
             stats.inserted += 1
         elif row.content_hash == new_hash:
+            for f in ENGLISH_FIELDS:  # new hand-written English is welcome; a missing one never erases ours
+                if getattr(t, f):
+                    setattr(row, f, getattr(t, f))
             stats.unchanged += 1
         else:
             for f in _TENDER_FIELDS:
+                if f in ENGLISH_FIELDS and not getattr(t, f):
+                    continue  # keep stored English until a real translation replaces it
                 setattr(row, f, getattr(t, f))
             row.content_hash = new_hash
             row.updated_at = _now()
@@ -69,6 +78,17 @@ def list_tenders(session: Session) -> list[Tender]:
 def get_tender(session: Session, ref: str) -> Tender | None:
     row = session.get(TenderRow, ref)
     return _tender_from_row(row) if row else None
+
+
+def set_tender_english(session: Session, ref: str, title_en: str | None, agency_en: str | None) -> None:
+    """Store English title/agency from the AI, only where none exists yet."""
+    row = session.get(TenderRow, ref)
+    if row is None:
+        return
+    if title_en and not row.title_en:
+        row.title_en = title_en.strip()
+    if agency_en and not row.agency_en:
+        row.agency_en = agency_en.strip()
 
 
 def get_tender_hash(session: Session, ref: str) -> str | None:
@@ -155,13 +175,16 @@ def get_pages(session: Session, brief_id: int) -> list[str] | None:
     return json.loads(row.pages_json) if row else None
 
 
-def save_answer(session: Session, brief_id: int, question: str, answer: BookletAnswer) -> None:
-    session.add(QuestionRow(brief_id=brief_id, question=question, json=answer.model_dump_json()))
+def save_answer(session: Session, brief_id: int, question: str, answer: BookletAnswer, lang: str = "en") -> None:
+    session.add(QuestionRow(brief_id=brief_id, question=question, lang=lang, json=answer.model_dump_json()))
 
 
-def list_answers(session: Session, brief_id: int) -> list[tuple[str, BookletAnswer]]:
-    """Questions asked about a brief and their answers, oldest first."""
-    rows = session.scalars(select(QuestionRow).where(QuestionRow.brief_id == brief_id).order_by(QuestionRow.id))
+def list_answers(session: Session, brief_id: int, lang: str | None = None) -> list[tuple[str, BookletAnswer]]:
+    """Questions asked about a brief and their answers, oldest first; optionally one language only."""
+    query = select(QuestionRow).where(QuestionRow.brief_id == brief_id).order_by(QuestionRow.id)
+    if lang is not None:
+        query = query.where(QuestionRow.lang == lang)
+    rows = session.scalars(query)
     return [(r.question, BookletAnswer.model_validate_json(r.json)) for r in rows]
 
 

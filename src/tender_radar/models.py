@@ -34,6 +34,14 @@ class Tender(BaseModel):
     estimated_value_sar: float | None = None
     description: str = ""
     source: str = "seed"
+    # English text for English-mode pages: hand-written for seed tenders, written by
+    # the scoring call for imports. Not part of the content (see tender_content_hash).
+    title_en: str | None = None
+    agency_en: str | None = None
+    description_en: str | None = None
+
+
+ENGLISH_FIELDS = ("title_en", "agency_en", "description_en")
 
 
 class CompanyProfile(BaseModel):
@@ -41,6 +49,7 @@ class CompanyProfile(BaseModel):
 
     id: str
     name: str
+    name_ar: str | None = None  # the company name shown on Arabic pages
     activities: list[str]
     keywords: list[str]
     certifications: list[str] = []
@@ -62,7 +71,7 @@ class CompanyProfile(BaseModel):
         The id and name are left out on purpose: renaming the company does not
         change which tenders fit, so it must not trigger paid AI re-scoring.
         """
-        payload = self.model_dump_json(exclude={"id", "name"})
+        payload = self.model_dump_json(exclude={"id", "name", "name_ar"})
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
 
 

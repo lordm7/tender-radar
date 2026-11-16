@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from datetime import date, datetime, timezone
 from typing import Iterator
 
-from sqlalchemy import JSON, Date, DateTime, Engine, Float, Integer, String, Text, create_engine
+from sqlalchemy import JSON, Date, DateTime, Engine, Float, Integer, String, Text, create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.pool import StaticPool
 
@@ -42,6 +42,9 @@ class TenderRow(Base):
     estimated_value_sar: Mapped[float | None] = mapped_column(Float, nullable=True)
     description: Mapped[str] = mapped_column(Text, default="")
     source: Mapped[str] = mapped_column(String, default="seed")
+    title_en: Mapped[str | None] = mapped_column(Text, nullable=True)
+    agency_en: Mapped[str | None] = mapped_column(String, nullable=True)
+    description_en: Mapped[str | None] = mapped_column(Text, nullable=True)
     content_hash: Mapped[str] = mapped_column(String)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
@@ -86,6 +89,7 @@ class QuestionRow(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     brief_id: Mapped[int] = mapped_column(Integer, index=True)
     question: Mapped[str] = mapped_column(Text)
+    lang: Mapped[str | None] = mapped_column(String, nullable=True)  # the page language it was asked in
     json: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
@@ -100,8 +104,20 @@ def make_engine(url: str) -> Engine:
 
 
 def init_db(engine: Engine) -> None:
-    """Create any missing tables."""
+    """Create any missing tables, and add new nullable columns to old tables.
+
+    There are no migrations; this small top-up lets a database made by an
+    older version keep working after a release that only adds optional columns.
+    """
     Base.metadata.create_all(engine)
+    existing = inspect(engine)
+    with engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            have = {c["name"] for c in existing.get_columns(table.name)}
+            for column in table.columns:
+                if column.name not in have and column.nullable:
+                    kind = column.type.compile(engine.dialect)
+                    conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {kind}'))
 
 
 @contextmanager
