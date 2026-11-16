@@ -13,3 +13,6 @@ data/imports/
 
 # Digest previews may contain private imported tenders
 digests/
+
+# Personal interview study guide (not part of the public project)
+notes/study-guide.html
