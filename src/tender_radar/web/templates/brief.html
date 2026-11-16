@@ -56,4 +56,38 @@
   {{ section("Evaluation", "معايير التقييم", brief.evaluation_criteria) }}
   {{ section("Risks", "المخاطر", brief.risks) }}
 </div>
+
+{% if qa or can_ask %}
+<section id="ask" class="mt-5 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+  <h2 class="flex justify-between font-semibold"><span>Ask the booklet</span><span class="ar" dir="rtl">اسأل الكراسة</span></h2>
+  <p class="mt-1 text-sm text-slate-500">Answers come only from the booklet text and cite the page they used.</p>
+  {% if qa %}
+  <ul class="mt-4 space-y-4">
+    {% for question, a in qa %}
+    <li class="rounded-lg bg-slate-50 p-4 ring-1 ring-slate-100">
+      <p dir="auto" class="ar font-medium">{{ question }}</p>
+      <p dir="auto" class="ar mt-2 whitespace-pre-line {{ 'text-slate-800' if a.found else 'text-slate-500' }}">{{ a.answer }}</p>
+      {% if a.citations %}
+      <p class="mt-2 flex flex-wrap gap-1 text-xs">
+        {% for n in a.citations %}<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-900">p. {{ n }}</span>{% endfor %}
+      </p>
+      {% elif not a.found %}
+      <p class="mt-2 text-xs text-slate-500">Not stated in the booklet</p>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if can_ask %}
+  {% if ask_error %}<div role="alert" class="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800 ring-1 ring-red-200">{{ ask_error }}</div>{% endif %}
+  <form method="post" action="/briefs/{{ brief_id }}/ask" class="mt-4 flex flex-col gap-2 sm:flex-row">
+    <label for="question" class="sr-only">Your question</label>
+    <input id="question" name="question" dir="auto" maxlength="500" required
+           placeholder="e.g. ما هي غرامة التأخير؟ / What is the minimum technical score?"
+           class="ar flex-1 rounded-lg border border-slate-300 px-3 py-2">
+    <button class="rounded-lg bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800">Ask</button>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
 {% endblock %}

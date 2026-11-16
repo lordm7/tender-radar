@@ -108,6 +108,14 @@ class BookletBrief(BaseModel):
     truncated: bool = False
 
 
+class BookletAnswer(BaseModel):
+    """The AI's answer to one question about a booklet, with the pages it used."""
+
+    answer: str
+    citations: list[int] = []  # 1-based page numbers the answer comes from
+    found: bool = True  # False when the booklet does not say
+
+
 def _read_json(path: Path) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 

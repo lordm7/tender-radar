@@ -60,6 +60,19 @@ def test_profile_change_rescores(seeded, profile):
     assert len(fake.calls) >= PASSING
 
 
+def test_prompt_change_rescores(seeded, profile, monkeypatch):
+    """Editing score_tender.md must invalidate cached scores, or a calibrated
+    prompt would never reach tenders that were already scored."""
+    from tender_radar.matching import scorer
+
+    run(seeded, profile, FakeProvider())
+    monkeypatch.setattr(scorer, "_prompt_template", lambda: "a new, calibrated prompt {profile_json} {tender_json}")
+    fake = FakeProvider()
+    stats = run(seeded, profile, fake)
+    assert stats.cached == 0
+    assert len(fake.calls) == PASSING
+
+
 def test_malformed_json_marks_unscored_and_continues(seeded, profile):
     stats = run(seeded, profile, FakeProvider([{"score": "high"}]))
     assert stats.unscored == 1

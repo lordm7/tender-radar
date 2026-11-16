@@ -1,0 +1,94 @@
+<style>
+  @keyframes sweep { to { transform: rotate(360deg); } }
+  .p { font-family: Inter, 'IBM Plex Sans Arabic', system-ui, sans-serif; color:#cbd5e1; background:#070d18; border-radius:12px; overflow:hidden; border:1px solid #162033; }
+  .nav a { color:#94a3b8; margin-left:16px; }
+  .muted { color:#8a96aa; }
+  .lbl { color:#64748b; font-size:9px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; }
+  .panel { background:#0b1424; border:1px solid #162033; border-radius:10px; }
+  .row { display:flex; align-items:center; gap:10px; padding:7px 12px; border-top:1px solid #162033; font-size:12px; }
+  .row.sel { background:#0e1e2c; box-shadow:inset 2px 0 0 #10b981; }
+  .score { width:34px; text-align:center; font-weight:650; border-radius:6px; padding:2px 0; font-size:12px; }
+  .s-hi { color:#34d399; background:rgba(16,185,129,.1); }
+  .s-mid { color:#fbbf24; background:rgba(251,191,36,.1); }
+  .btn { display:inline-block; border-radius:7px; padding:5px 11px; font-size:11px; font-weight:600; }
+  .sel-box { border:1px solid #243247; border-radius:6px; padding:3px 8px; color:#cbd5e1; font-size:10px; }
+</style>
+<h2>Matches page — professional version</h2>
+<p class="subtitle">Same compact layout you approved (numbers strip · radar · selected tender · list), now in the calm home-page style: no glow, line icons, one accent colour, clean table rows.</p>
+
+<div class="p">
+  <!-- nav (same as home) -->
+  <div class="nav" style="display:flex;align-items:center;padding:10px 20px;border-bottom:1px solid #162033;font-size:12px">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12 L19 6"/></svg>
+    <b style="color:#f8fafc;margin-left:8px;font-weight:600">Tender Radar</b>
+    <span style="margin-left:22px"><a style="color:#f8fafc;margin:0">Matches</a><a>Booklet reader</a><a>Bidding profile</a></span>
+    <span style="margin-left:auto" class="sel-box">Najd Digital Solutions ▾</span>
+    <span style="margin-left:8px" class="sel-box">EN · ع</span>
+  </div>
+
+  <!-- page header + numbers -->
+  <div style="display:flex;align-items:flex-end;gap:24px;padding:14px 20px 12px">
+    <div>
+      <div class="lbl">Matches · 15 Nov 2026</div>
+      <div style="color:#f8fafc;font-size:18px;font-weight:650;margin-top:3px;letter-spacing:-.01em">Najd Digital Solutions</div>
+    </div>
+    <div style="display:flex;gap:22px;margin-left:auto;font-size:10px" class="muted">
+      <div><b style="display:block;color:#f8fafc;font-size:17px">9</b>worth a look</div>
+      <div><b style="display:block;color:#f8fafc;font-size:17px">21</b>filtered by rules</div>
+      <div><b style="display:block;color:#fbbf24;font-size:17px">1</b>closes this week</div>
+      <div><b style="display:block;color:#f8fafc;font-size:17px">3</b>regions</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:150px 1fr 1.1fr;gap:12px;padding:0 20px 16px">
+    <!-- radar -->
+    <div class="panel" style="padding:10px;display:flex;flex-direction:column;align-items:center">
+      <div class="lbl" style="align-self:flex-start">Fit radar</div>
+      <div style="width:118px;height:118px;border-radius:50%;position:relative;margin-top:8px;border:1px solid #1d2b40">
+        <div style="position:absolute;inset:20px;border-radius:50%;border:1px solid #162033"></div>
+        <div style="position:absolute;inset:40px;border-radius:50%;border:1px solid #162033"></div>
+        <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#162033"></div>
+        <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:#162033"></div>
+        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,rgba(16,185,129,.18),transparent 18%);animation:sweep 6s linear infinite"></div>
+        <i style="position:absolute;left:54px;top:48px;width:9px;height:9px;border-radius:50%;background:#10b981;outline:2px solid #f8fafc;outline-offset:2px"></i>
+        <i style="position:absolute;left:72px;top:40px;width:6px;height:6px;border-radius:50%;background:#10b981"></i>
+        <i style="position:absolute;left:40px;top:70px;width:6px;height:6px;border-radius:50%;background:#10b981"></i>
+        <i style="position:absolute;left:68px;top:74px;width:6px;height:6px;border-radius:50%;background:#fbbf24"></i>
+        <i style="position:absolute;left:92px;top:88px;width:4px;height:4px;border-radius:50%;background:#334155"></i>
+        <i style="position:absolute;left:16px;top:56px;width:4px;height:4px;border-radius:50%;background:#334155"></i>
+      </div>
+      <div class="muted" style="font-size:9px;margin-top:8px;text-align:center">Closer to centre = better fit</div>
+    </div>
+
+    <!-- selected tender -->
+    <div class="panel" style="padding:12px">
+      <div class="lbl">Selected tender</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+        <div style="width:42px;height:42px;border-radius:50%;flex:none;background:conic-gradient(#10b981 0 95%,#1d2b40 0);display:flex;align-items:center;justify-content:center">
+          <div style="width:34px;height:34px;border-radius:50%;background:#0b1424;display:flex;align-items:center;justify-content:center;font-weight:650;font-size:13px;color:#f8fafc">95</div>
+        </div>
+        <div dir="rtl" style="text-align:right;font-size:12px;font-weight:600;color:#f8fafc;flex:1;line-height:1.4">حل ذكاء اصطناعي لتحليل بلاغات المواطنين وتصنيفها</div>
+      </div>
+      <div style="font-size:11px;margin-top:8px;line-height:1.5">Core AI/software work for your company; region covered; value within budget.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px;font-size:10px" class="muted">
+        <div><span class="lbl" style="display:block">Closes</span><span style="color:#e2e8f0">5 Jan · 51 days</span></div>
+        <div><span class="lbl" style="display:block">Booklet</span><span style="color:#e2e8f0">1,000 SAR</span></div>
+        <div><span class="lbl" style="display:block">Inquiries</span><span style="color:#e2e8f0">until 26 Dec</span></div>
+      </div>
+      <div style="margin-top:10px"><span class="btn" style="background:#10b981;color:#04130d">Open tender</span> <span class="btn" style="border:1px solid #243247;color:#e2e8f0;margin-left:4px">Brief the booklet</span></div>
+    </div>
+
+    <!-- list -->
+    <div class="panel" style="overflow:hidden">
+      <div style="display:flex;align-items:center;padding:9px 12px">
+        <span class="lbl">All matches</span>
+        <span style="margin-left:auto;display:flex;gap:5px"><span class="sel-box">Score 80+</span><span class="sel-box">Any agency</span><span class="sel-box">Any deadline</span></span>
+      </div>
+      <div class="row sel"><span class="score s-hi">95</span><span dir="rtl" style="flex:1;text-align:right;color:#f8fafc">حل ذكاء اصطناعي لتحليل البلاغات</span><span class="muted" style="width:52px;text-align:right">51 days</span></div>
+      <div class="row"><span class="score s-hi">90</span><span dir="rtl" style="flex:1;text-align:right;color:#e2e8f0">تطوير منصة رقمية لخدمات المستفيدين</span><span class="muted" style="width:52px;text-align:right">25 days</span></div>
+      <div class="row"><span class="score s-hi">90</span><span dir="rtl" style="flex:1;text-align:right;color:#e2e8f0">ترحيل الأنظمة إلى الحوسبة السحابية</span><span class="muted" style="width:52px;text-align:right">35 days</span></div>
+      <div class="row"><span class="score s-mid">88</span><span dir="rtl" style="flex:1;text-align:right;color:#e2e8f0">خدمات الأمن السيبراني</span><span style="width:52px;text-align:right;color:#fbbf24">5 days</span></div>
+      <div class="row muted" style="font-size:10px;justify-content:center">Show 5 more · 21 filtered by rules ▸</div>
+    </div>
+  </div>
+</div>

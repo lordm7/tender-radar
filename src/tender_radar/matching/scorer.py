@@ -1,8 +1,9 @@
 """The matching run: rule filter, then AI scoring, with caching and safe failure.
 
 For every tender:
-  1. If we already have a verdict for this exact tender content and profile
-     version, reuse it (no AI call, no cost).
+  1. If we already have a verdict for this exact tender content, profile
+     version and prompt version, reuse it (no AI call, no cost). Editing the
+     prompt changes its fingerprint, so a calibrated prompt re-scores everything.
   2. If the free rule filter rejects it, store "filtered_out" with the reason.
   3. Otherwise ask the AI for a score. If the provider is rate-limited, wait and
      retry a few times. If it still fails, or returns bad JSON, store
@@ -12,6 +13,7 @@ For every tender:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import time
 from dataclasses import dataclass
@@ -42,9 +44,19 @@ class RunStats:
     cached: int = 0
 
 
+def _prompt_template() -> str:
+    return resources.files("tender_radar.prompts").joinpath("score_tender.md").read_text(encoding="utf-8")
+
+
+def scoring_version(profile: CompanyProfile) -> str:
+    """Cache key part: the profile fingerprint plus a short fingerprint of the prompt."""
+    prompt_hash = hashlib.sha256(_prompt_template().encode("utf-8")).hexdigest()[:6]
+    return f"{profile.version}-p{prompt_hash}"
+
+
 def build_score_prompt(tender: Tender, profile: CompanyProfile) -> str:
     """Fill the scoring prompt template with the profile and the tender."""
-    template = resources.files("tender_radar.prompts").joinpath("score_tender.md").read_text(encoding="utf-8")
+    template = _prompt_template()
     return template.replace("{profile_json}", profile.model_dump_json(indent=2)).replace(
         "{tender_json}", tender.model_dump_json(indent=2)
     )
@@ -81,7 +93,7 @@ def run_matching(
 ) -> RunStats:
     """Score every stored tender against the profile; see the module docstring."""
     stats = RunStats()
-    version = profile.version
+    version = scoring_version(profile)
     quota_exhausted = False  # after the AI keeps saying "too many requests", stop asking this run
     for tender in list_tenders(session):
         content_hash = get_tender_hash(session, tender.reference)
