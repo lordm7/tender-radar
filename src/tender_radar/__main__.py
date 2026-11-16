@@ -22,7 +22,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from tender_radar.ai.provider import AIError, get_provider
+from tender_radar.ai.provider import AIError, call_with_retry, get_provider
 from tender_radar.db import init_db, make_engine, session_scope
 from tender_radar.matching.scorer import run_matching
 from tender_radar.models import SEED_ANCHOR, load_profile, load_seed_tenders, shift_dates
@@ -117,7 +117,8 @@ def _cmd_brief(args: argparse.Namespace, settings: Settings) -> int:
             return 1
         profile = profiles[0]
         try:
-            brief = build_brief(pages, profile, get_provider(settings))
+            provider = get_provider(settings)
+            brief = call_with_retry(lambda: build_brief(pages, profile, provider))
         except (AIError, ValidationError) as exc:
             print(f"The AI could not read this booklet right now ({exc}). Please try again later.")
             return 1
@@ -142,7 +143,7 @@ def _cmd_ask(args: argparse.Namespace, settings: Settings) -> int:
     failed = 0
     for question in args.questions:
         try:
-            answer = answer_question(question, pages, provider)
+            answer = call_with_retry(lambda: answer_question(question, pages, provider))
         except (AIError, ValidationError) as exc:
             print(f"Q: {question}")
             print(f"The AI could not answer right now ({exc}).")

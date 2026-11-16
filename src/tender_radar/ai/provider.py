@@ -8,7 +8,8 @@ touching the matching or reader code. Tests never spend money or need a key.
 
 from __future__ import annotations
 
-from typing import Protocol, TypeVar
+import time
+from typing import Callable, Protocol, TypeVar
 
 from pydantic import BaseModel
 
@@ -24,6 +25,28 @@ class AIError(Exception):
 
 class RateLimited(AIError):
     """The provider said 'too many requests' (HTTP 429); worth retrying later."""
+
+
+R = TypeVar("R")
+_sleep: Callable[[float], None] = time.sleep  # tests replace this so they never wait
+
+
+def call_with_retry(
+    fn: Callable[[], R], retries: int = 2, wait: float = 20, sleep: Callable[[float], None] | None = None
+) -> R:
+    """Run one AI call; on a rate limit (429) or outage (503, bad answer) wait and try again.
+
+    The free tier allows about 15 calls a minute, so waits grow 20s, 40s, …
+    After the last retry the error is raised for the caller to report.
+    """
+    for attempt in range(retries + 1):
+        try:
+            return fn()
+        except AIError:
+            if attempt == retries:
+                raise
+            (sleep or _sleep)(wait * (2**attempt))
+    raise AssertionError("unreachable")
 
 
 class LLMProvider(Protocol):

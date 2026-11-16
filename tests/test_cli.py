@@ -89,7 +89,8 @@ def test_brief_command_ai_failure_returns_1(tmp_path, monkeypatch, capsys):
     from tender_radar.ai.provider import AIError, FakeProvider
 
     monkeypatch.setenv("TR_DATABASE_URL", f"sqlite:///{(tmp_path / 'cli.db').as_posix()}")
-    monkeypatch.setattr(cli, "get_provider", lambda settings: FakeProvider([AIError("503 UNAVAILABLE")]))
+    down = [AIError("503 UNAVAILABLE")] * 3  # the first try and both retries fail
+    monkeypatch.setattr(cli, "get_provider", lambda settings: FakeProvider(list(down)))
     pdf = tmp_path / "booklet.pdf"
     doc = pymupdf.open()
     doc.new_page().insert_textbox(pymupdf.Rect(40, 40, 555, 800), "Scope of work for a digital platform. " * 20)
@@ -97,6 +98,8 @@ def test_brief_command_ai_failure_returns_1(tmp_path, monkeypatch, capsys):
     assert main(["seed"]) == 0
     assert main(["brief", str(pdf)]) == 1
     assert "AI could not read this booklet" in capsys.readouterr().out
+    monkeypatch.setattr(cli, "get_provider", lambda settings: FakeProvider([AIError("503 UNAVAILABLE")]))
+    assert main(["brief", str(pdf)]) == 0  # one outage is waited out and retried
 
 
 def test_import_command_reads_copied_text_and_saved_html(tmp_path, monkeypatch, capsys):

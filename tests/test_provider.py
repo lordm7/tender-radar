@@ -44,3 +44,36 @@ def test_gemini_client_has_timeout(monkeypatch):
     monkeypatch.setattr(genai, "Client", FakeClient)
     GeminiProvider(api_key="k", model="m")._get_client()
     assert captured["http_options"].timeout == REQUEST_TIMEOUT_MS == 60_000
+
+
+# --- retry helper for one-off AI calls (brief, ask) --------------------------
+
+def test_call_with_retry_waits_out_rate_limits_and_outages():
+    from tender_radar.ai.provider import AIError, RateLimited, call_with_retry
+
+    attempts, waits = [], []
+
+    def flaky():
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise RateLimited("429")
+        if len(attempts) == 2:
+            raise AIError("503 UNAVAILABLE")
+        return "ok"
+
+    assert call_with_retry(flaky, retries=2, wait=20, sleep=waits.append) == "ok"
+    assert waits == [20, 40]
+
+
+def test_call_with_retry_gives_up_and_raises_the_last_error():
+    import pytest
+
+    from tender_radar.ai.provider import RateLimited, call_with_retry
+
+    def always():
+        raise RateLimited("429")
+
+    waits = []
+    with pytest.raises(RateLimited):
+        call_with_retry(always, retries=2, wait=20, sleep=waits.append)
+    assert waits == [20, 40]
