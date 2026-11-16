@@ -90,7 +90,8 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - [x] 6 tricky eval tenders added (2026-11-16). Labels marked `"proposed": true` — the user must confirm them.
 - [x] Calibrated scoring prompt (2026-11-16, one Gemini run): 26/26, tricky 6/6, fit scores spread 62–92. Old prompt: 25/26, tricky 6/6, every fit = 90. Fake AI: 19/26 (tricky 0/6). CV wording: "on a 26-tender labelled set the pipeline matched human bid decisions 26/26, including 6 look-alike no-bid traps the keyword rules let through".
 - [x] Plan 2 built on branch feat/plan2 (2026-11-15): Etimad-shaped data, smarter rules, private importer, two companies, rolling demo, digest, daily workflow, README. 134 tests. Final review fixes done; deferred minors are in the Plan 2 ledger.
-- [x] Redesign built on `feat/redesign` (2026-11-16, plan `docs/superpowers/plans/2026-11-16-tender-radar-redesign.md`), 198 tests. NOT merged/pushed: the user reviews it, gives the LinkedIn URL, then merges.
+- [x] Redesign built on `feat/redesign` (2026-11-16, plan `docs/superpowers/plans/2026-11-16-tender-radar-redesign.md`), final review fixes done, 200 tests. NOT merged/pushed: the user reviews it, gives the LinkedIn URL, then merges.
+- [ ] Redesign deferred minors (ledger `.superpowers/sdd/2026-11-16-tender-radar-redesign/progress.md`): orig tag lost in JS select, filter hides selected tender, brief lang switch on old sample briefs, `_orig` isascii guess, profile form `date.today()`, Arabic words in English AI reasons
 - [ ] User decisions: make repo public (for Pages), Gmail app password for the digest, OK to store GEMINI_API_KEY as a GitHub secret, send the Etimad letter
 - [x] Plan 3 built on branch `feat/plan3` (2026-11-16): Ask the booklet, calibrated eval, README update, video script (`docs/demo-video-script.md`). 154 tests. Merged into main and pushed 2026-11-16 (3aa51df), CI green.
 - [ ] Record the 2-minute video (the user does it, following the script)
