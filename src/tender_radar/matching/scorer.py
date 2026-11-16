@@ -26,8 +26,10 @@ from sqlalchemy.orm import Session
 
 from tender_radar.ai.provider import AIError, LLMProvider, RateLimited
 from tender_radar.matching.rules import prefilter
-from tender_radar.models import AIScore, CompanyProfile, MatchResult, Tender
-from tender_radar.repository import get_match, get_match_hash, get_tender_hash, list_tenders, save_match
+from tender_radar.models import ENGLISH_FIELDS, AIScore, CompanyProfile, MatchResult, Tender
+from tender_radar.repository import (
+    get_match, get_match_hash, get_tender_hash, list_tenders, save_match, set_tender_english,
+)
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +60,7 @@ def build_score_prompt(tender: Tender, profile: CompanyProfile) -> str:
     """Fill the scoring prompt template with the profile and the tender."""
     template = _prompt_template()
     return template.replace("{profile_json}", profile.model_dump_json(indent=2)).replace(
-        "{tender_json}", tender.model_dump_json(indent=2)
+        "{tender_json}", tender.model_dump_json(indent=2, exclude=set(ENGLISH_FIELDS))
     )
 
 
@@ -132,5 +134,6 @@ def run_matching(
                 MatchResult(**base, status="scored", score=ai.score, reasons_en=ai.reasons_en, reasons_ar=ai.reasons_ar),
                 content_hash,
             )
+            set_tender_english(session, tender.reference, ai.title_en, ai.agency_en)  # free: same call
             stats.scored += 1
     return stats

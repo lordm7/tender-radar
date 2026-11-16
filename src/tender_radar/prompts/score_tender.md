@@ -21,4 +21,6 @@ Company profile (JSON):
 Tender (JSON):
 {tender_json}
 
-Answer only with JSON: {"score": <int>, "reasons_en": [...], "reasons_ar": [...]}
+Also translate the tender's title and agency name into short, natural English (title_en, agency_en), for English-speaking readers. Translate only; add nothing.
+
+Answer only with JSON: {"score": <int>, "reasons_en": [...], "reasons_ar": [...], "title_en": "...", "agency_en": "..."}

@@ -93,6 +93,8 @@ class AIScore(BaseModel):
     score: int = Field(ge=0, le=100)
     reasons_en: list[str]
     reasons_ar: list[str]
+    title_en: str | None = None  # English translation of the tender title, for English pages
+    agency_en: str | None = None
 
 
 class ChecklistItem(BaseModel):

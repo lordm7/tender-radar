@@ -73,6 +73,32 @@ def test_prompt_change_rescores(seeded, profile, monkeypatch):
     assert len(fake.calls) == PASSING
 
 
+def test_scoring_stores_english_title_once(engine, profile):
+    from tender_radar.models import Tender
+    from tender_radar.repository import get_tender
+
+    imported = Tender(reference="R9", title="تطوير برمجيات", agency="جهة بمنطقة الرياض", tender_type="منافسة عامة",
+                      activity="تقنية المعلومات", estimated_value_sar=1_000_000, source="etimad-import")
+    with session_scope(engine) as s:
+        upsert_tenders(s, [imported])
+    answer = dict(VALID, title_en="Software development", agency_en="An agency, Riyadh Region")
+    run(engine, profile, FakeProvider([answer]))
+    with session_scope(engine) as s:
+        t = get_tender(s, "R9")
+    assert (t.title_en, t.agency_en) == ("Software development", "An agency, Riyadh Region")
+    fake = FakeProvider()
+    stats = run(engine, profile, fake)  # writing the English title is not a content change
+    assert fake.calls == [] and stats.cached == 1
+
+
+def test_score_prompt_asks_for_english_title_but_never_sends_ours(seed_tenders, profile):
+    from tender_radar.matching import scorer
+
+    assert '"title_en"' in scorer._prompt_template() and '"agency_en"' in scorer._prompt_template()
+    prompt = build_score_prompt(seed_tenders[0], profile)
+    assert seed_tenders[0].title_en not in prompt  # the AI translates the Arabic, it is not shown our English
+
+
 def test_malformed_json_marks_unscored_and_continues(seeded, profile):
     stats = run(seeded, profile, FakeProvider([{"score": "high"}]))
     assert stats.unscored == 1
