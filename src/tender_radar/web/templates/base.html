@@ -18,7 +18,7 @@
       <nav class="nav-links" aria-label="{{ t('brand') }}">
         {% if kind == "home" %}
           <a href="#product">{{ t("nav_product") }}</a>
-          <a href="#how">{{ t("nav_how") }}</a>
+          <a href="{{ links.how() }}">{{ t("nav_how") }}</a>
           <a href="#about">{{ t("nav_about") }}</a>
         {% else %}
           <a href="{{ links.matches() }}" {% if kind in ("dashboard", "tender", "companies") %}aria-current="page"{% endif %}>{{ t("matches") }}</a>
@@ -28,6 +28,7 @@
           {% elif has_sample_brief or kind == "brief_sample" %}
             <a href="{{ links.sample_brief() }}" {% if kind == "brief_sample" %}aria-current="page"{% endif %}>{{ t("sample_brief") }}</a>
           {% endif %}
+          <a href="{{ links.how() }}" {% if kind == "how" %}aria-current="page"{% endif %}>{{ t("nav_how") }}</a>
         {% endif %}
       </nav>
       <div class="nav-end">

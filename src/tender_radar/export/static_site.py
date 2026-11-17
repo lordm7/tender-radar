@@ -6,7 +6,7 @@ folder anyone can open without a server: no running cost, and it is never
 "asleep" when a recruiter clicks the link.
 
 Layout, once per language (en/, ar/): index.html (home), companies.html,
-companies/new.html (add-a-company preview),
+companies/new.html (add-a-company preview), how.html (How it works),
 c/<id>/index.html (matches), c/<id>/tenders/<slug>.html,
 calendar/<slug>.ics, briefs/sample.html.
 The root index.html sends visitors to en/; static/ is shared.
@@ -32,6 +32,7 @@ from tender_radar.web.app import (
     render_add_company,
     render_brief,
     render_companies,
+    render_how,
     render_dashboard,
     render_home,
     render_tender,
@@ -88,6 +89,7 @@ def export_site(session: Session, profiles: list[CompanyProfile], today: date, o
         written.append(_write(base / "companies.html", html))
         html = render_add_company(session, today, read_only=True, static_files=True, lang=lang)
         written.append(_write(base / "companies" / "new.html", html))  # a disabled preview, no form
+        written.append(_write(base / "how.html", render_how(session, today, True, static_files=True, lang=lang)))
         for profile in profiles:
             company_dir = base / "c" / profile.id
             html = render_dashboard(session, profile, today, read_only=True, static_files=True, lang=lang)

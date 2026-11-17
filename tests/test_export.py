@@ -206,3 +206,11 @@ def test_export_writes_calendar_files(db_settings, tmp_path):
     assert not (out / "en" / "calendar" / "000000001006.ics").exists()  # no deadline, no calendar
     page = (out / "en" / "c" / "najd-digital" / "tenders" / "000000001004.html").read_text(encoding="utf-8")
     assert 'href="../../../../en/calendar/000000001004.ics"' in page
+
+
+def test_export_has_how_page(db_settings, tmp_path):
+    out = tmp_path / "site"
+    run_export(db_settings, out)
+    for lang in ("en", "ar"):
+        assert (out / lang / "how.html").exists()
+    assert 'href="../en/how.html"' in (out / "en" / "index.html").read_text(encoding="utf-8")

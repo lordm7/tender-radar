@@ -34,8 +34,8 @@ from tender_radar.ai.provider import AIError, LLMProvider, get_provider
 from tender_radar.calendar_ics import tender_ics
 from tender_radar.db import init_db, make_engine, session_scope
 from tender_radar.matching.rules import check_rules
-from tender_radar.matching.scorer import WEIGHTS, run_matching
-from tender_radar.models import BookletAnswer, BookletBrief, CompanyProfile, MatchResult, Tender
+from tender_radar.matching.scorer import WEIGHTS, run_matching, total_score
+from tender_radar.models import BookletAnswer, BookletBrief, CompanyProfile, MatchResult, ScoreParts, Tender
 from tender_radar.reader.ask import answer_question
 from tender_radar.reader.brief import build_brief
 from tender_radar.reader.pdf_text import UnreadablePDF, extract_pages
@@ -111,6 +111,7 @@ def _page_path(page: tuple, static_files: bool) -> str:
             "home": lambda: "index.html",
             "companies": lambda: "companies.html",
             "add_company": lambda: "companies/new.html",
+            "how": lambda: "how.html",
             "dashboard": lambda c: f"c/{c}/index.html",
             "tender": lambda c, ref: f"c/{c}/tenders/{tender_slug(ref)}.html",
             "calendar": lambda ref: f"calendar/{tender_slug(ref)}.ics",
@@ -121,6 +122,7 @@ def _page_path(page: tuple, static_files: bool) -> str:
             "home": lambda: "",
             "companies": lambda: "companies",
             "add_company": lambda: "companies/new",
+            "how": lambda: "how",
             "add_company_extract": lambda: "companies/new/extract",
             "dashboard": lambda c: f"c/{c}/",
             "tender": lambda c, ref: f"c/{c}/tenders/{ref}",
@@ -176,6 +178,9 @@ class Links:
 
     def add_company(self) -> str:
         return self._url(("add_company",))
+
+    def how(self) -> str:
+        return self._url(("how",))
 
     def add_company_extract(self) -> str:
         return self._url(("add_company_extract",))
@@ -593,6 +598,82 @@ def render_tender(
     )
 
 
+def score_formula(parts: ScoreParts) -> str:
+    """The score sum written out with real numbers, e.g. "0.5 × 95 + 0.3 × 90 + 0.2 × (100 − 35) = 87.5 → 88"."""
+    w = {k: f"{v:g}" for k, v in WEIGHTS.items()}
+    exact = sum(round(WEIGHTS[k] * 10) * v for k, v in  # in tenths, like total_score
+                (("fit", parts.fit), ("ability", parts.ability), ("risk", 100 - parts.risk)))
+    return (f"{w['fit']} × {parts.fit} + {w['ability']} × {parts.ability} + {w['risk']} × (100 − {parts.risk})"
+            f" = {exact // 10}.{exact % 10} → {total_score(parts)}")
+
+
+def pipeline_story(session: Session, today: date, lang: str) -> dict | None:
+    """Real numbers for the "How it works" page, and the best public tender traced step by step.
+
+    The numbers are for the company of the traced tender (the free rules depend on the
+    company's bidding profile). Only public seed tenders count, like every read-only view.
+    """
+    profiles = list_profiles(session)
+    if not profiles:
+        return None
+    candidates = []  # (score, reference, profile, tender, match)
+    for profile in profiles:
+        for m in list_matches(session, profile.id):
+            if m.status != "scored" or m.parts is None:
+                continue
+            tender = get_tender(session, m.tender_reference)
+            closed = tender is not None and tender.deadline is not None and tender.deadline < today
+            if tender is not None and is_public(tender) and not closed:  # a closed tender is no example
+                candidates.append((-m.score, m.tender_reference, profile.id, profile, tender, m))
+    candidates.sort(key=lambda c: c[:3])
+    best = candidates[0] if candidates else None
+    profile = best[3] if best else profiles[0]
+
+    results, filtered = _rows(session, profile, today, public_only=True)
+    scores = sorted((r.match.score for r in results if r.match and r.match.status == "scored"), reverse=True)
+    counts = {
+        "tenders": len(results) + len(filtered),
+        "filtered": len(filtered),
+        "scored": len(scores),
+        "unscored": sum(1 for r in results if r.match and r.match.status == "unscored"),
+        "top": scores[:3],
+    }
+    trace = None
+    if best:
+        _, ref, _, _, tender, match = best
+        title, title_orig = tender_text(tender, "title", lang)
+        trace = {
+            "ref": ref,
+            "profile_id": profile.id,
+            "title": title,
+            "title_orig": title_orig,
+            "checks": profile_check(tender, profile, today, lang),
+            "parts": score_parts(match, lang),
+            # Only when today's formula gives the stored score (scores are not redone when WEIGHTS change).
+            "formula": score_formula(match.parts) if total_score(match.parts) == match.score else None,
+            "score": match.score,
+            "verdict": verdict_key(match),
+        }
+    return {"company": company_name(profile, lang), "profile_id": profile.id, "counts": counts, "trace": trace}
+
+
+# The "Built with" list on the How it works page (tool names stay in English on both pages).
+BUILT_WITH = ["Python", "FastAPI", "Jinja", "SQLite", "SQLAlchemy", "Pydantic", "Gemini", "PyMuPDF", "GitHub Actions", "GitHub Pages"]
+
+
+def render_how(session: Session, today: date, read_only: bool, static_files: bool = False, lang: str = "en") -> str:
+    """The "How it works" page: the pipeline with real numbers and one traced tender (public data only)."""
+    story = pipeline_story(session, today, lang)
+    company = story["profile_id"] if story else None
+    links = _links(lang, read_only, static_files, ("how",), company, session)
+    # The company name may be in the other language (no Arabic name yet): mark it, like other originals.
+    numbers_for = _tr(lang, "numbers_for", company=_orig(*story["company"], lang, tag=False)) if story else None
+    return templates.get_template("how.html").render(
+        story=story, numbers_for=numbers_for, built_with=BUILT_WITH, agreement=EVAL_AGREEMENT,
+        **_ctx(lang, links, today, has_sample_brief=_has_sample(session)),
+    )
+
+
 def _lines(text: str) -> list[str]:
     """Textarea → list: one item per line, blanks dropped."""
     return [line.strip() for line in text.splitlines() if line.strip()]
@@ -790,6 +871,12 @@ def create_app(
         check_lang(lang)
         with session_scope(engine) as s:
             return render_add_company(s, current_day(), read_only, lang=lang)
+
+    @app.get("/{lang}/how", response_class=HTMLResponse)
+    def how_page(lang: str) -> str:
+        check_lang(lang)
+        with session_scope(engine) as s:
+            return render_how(s, current_day(), read_only, lang=lang)
 
     @app.get("/{lang}/c/{profile_id}/", response_class=HTMLResponse)
     def dashboard(lang: str, profile_id: str) -> str:

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}{{ t("how_page_title") }}{% endblock %}
+{# "How it works": the real pipeline with live numbers, one tender traced from rules to
+   score, and the tools. Every number comes from pipeline_story() in web/app.py. #}
+{% macro en(text) %}<span class="code" lang="en" dir="ltr">{{ text }}</span>{% endmacro %}
+{% block content %}
+<div class="wrap stack">
+  <header>
+    <h1>{{ t("how_page_title") }}</h1>
+    <p class="muted" style="margin-top:6px; max-width: 62ch">{{ t("how_intro") }}</p>
+  </header>
+
+  {% if story %}
+  <section>
+    <div class="flow-head">
+      <h2 class="lbl">{{ t("pipeline") }}</h2>
+      <span class="muted small numbers-for">{{ numbers_for }}</span>
+    </div>
+    {% set c = story.counts %}
+    {% set steps = [
+      ("hw_import", t("count_tenders", n=c.tenders), ["importer/"]),
+      ("hw_rules", t("count_filtered", n=c.filtered), ["matching/rules.py"]),
+      ("hw_ai", t("count_scored", n=c.scored), ["Gemini", "matching/scorer.py", "prompts/score_tender.md"]),
+      ("hw_rank", t("count_top", scores=c.top | join(", ")) if c.top else "—", ["web/app.py", "digest.py"]),
+      ("hw_brief", t("count_brief"), ["PyMuPDF", "Gemini", "reader/brief.py"]),
+    ] %}
+    <ol class="flow">
+      {% for key, count, tools in steps %}
+      <li class="panel panel-pad flow-step">
+        <span class="flow-n">{{ loop.index }}</span>
+        <h3>{{ t(key) }}</h3>
+        <b class="flow-count">{{ count }}</b>
+        <p class="muted small">{{ t(key ~ "_text") }}</p>
+        <p class="flow-tools">{% for x in tools %}{{ en(x) }}{% endfor %}</p>
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  {% if story.trace %}
+  {% set tr = story.trace %}
+  <section class="panel panel-pad">
+    <div class="flow-head">
+      <h2 class="lbl">{{ t("trace_title") }}</h2>
+      <a class="small" href="{{ links.tender(tr.ref) }}">{{ t("open_tender") }} {{ "←" if lang == "ar" else "→" }}</a>
+    </div>
+    <p class="trace-title">{{ orig(tr.title, tr.title_orig) }} <span class="muted small" dir="ltr">· {{ tr.ref }}</span></p>
+    <div class="grid-2" style="margin-top:12px">
+      <div>
+        <h3 class="lbl">{{ t("trace_rules") }}</h3>
+        <ul class="checks">
+          {% for ch in tr.checks %}<li class="check {{ ch.status }}"><span class="mark" aria-hidden="true">{{ {"pass": "✓", "fail": "✕", "unknown": "?"}[ch.status] }}</span><span>{{ ch.text }}</span></li>{% endfor %}
+        </ul>
+      </div>
+      <div>
+        <h3 class="lbl">{{ t("trace_ai") }}</h3>
+        <ul class="parts">
+          {% for p in tr.parts.rows %}
+          <li class="part {{ p.key }}">
+            <div class="part-head"><span>{{ t("part_" ~ p.key) }} <span class="muted small">· {{ p.weight }}%</span></span><b>{{ p.value }}</b></div>
+            <div class="part-bar"><i style="inline-size: {{ p.value }}%"></i></div>
+            <p class="muted small">{{ p.text }}</p>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    <h3 class="lbl" style="margin-top:16px">{{ t("trace_formula") }}</h3>
+    {% if tr.parts.blocker %}<p class="alert alert-error" style="margin-top:8px"><b>{{ t("blocker") }}:</b> {{ tr.parts.blocker }}</p>{% endif %}
+    <div class="formula">
+      <code dir="ltr">{{ tr.formula if tr.formula else tr.score }}</code>
+      <span class="verdict-chip {{ tr.verdict }}">{{ t(tr.verdict) }}</span>
+    </div>
+  </section>
+  {% endif %}
+  {% endif %}
+
+  <div class="grid-2">
+    <section class="panel panel-pad">
+      <h2 class="lbl">{{ t("built_with") }}</h2>
+      <p class="flow-tools" style="margin-top:10px">{% for x in built_with %}{{ en(x) }}{% endfor %}</p>
+    </section>
+    <section class="panel panel-pad">
+      <h2 class="lbl">{{ t("how_good") }}</h2>
+      <p style="margin-top:8px"><b class="big-stat" dir="ltr">{{ agreement }}</b></p>
+      <p class="muted small">{{ t("how_good_text") }}</p>
+    </section>
+  </div>
+</div>
+{% endblock %}

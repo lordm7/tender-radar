@@ -281,3 +281,25 @@ form .field input, form .field textarea, form .field select { width: 100%; margi
   .hero h1 { font-size: 1.8rem; }
   .ask-form { flex-direction: column; }
 }
+
+/* How it works page */
+.flow-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.flow { list-style: none; padding: 0; margin: 10px 0 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.flow-step { position: relative; display: flex; flex-direction: column; gap: 6px; }
+.flow-step + .flow-step::before { content: ""; position: absolute; inset-inline-start: -14px; top: 28px; inline-size: 14px; border-top: 1px dashed var(--accent); }
+.flow-n { inline-size: 24px; block-size: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 0.75rem; font-weight: 650; color: var(--accent); border: 1px solid var(--accent); }
+.flow-step h3 { font-size: 1rem; }
+.flow-count { color: var(--head); font-size: 1.05rem; }
+.flow-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 6px; }
+.code { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; color: var(--text-2); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+.trace-title { color: var(--head); font-weight: 600; margin-top: 6px; }
+.formula { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.formula code { font-family: ui-monospace, Consolas, monospace; font-size: 0.95rem; color: var(--head); background: var(--line-2); border-radius: 8px; padding: 8px 12px; }
+.verdict-chip { border-radius: 999px; padding: 3px 12px; font-size: 0.85rem; border: 1px solid var(--line); }
+.verdict-chip.verdict_bid { color: var(--accent); border-color: var(--accent); }
+.verdict-chip.verdict_consider { color: var(--warn); border-color: var(--warn); }
+.big-stat { color: var(--head); font-size: 2rem; font-weight: 650; }
+@media (max-width: 900px) {
+  .flow { grid-template-columns: 1fr; }
+  .flow-step + .flow-step::before { display: none; }
+}
