@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from ai_answers import answer_for_total
 from tender_radar.ai.provider import FakeProvider
 from tender_radar.db import init_db, make_engine, session_scope
 from tender_radar.matching.scorer import run_matching
@@ -42,7 +43,7 @@ def db_settings(tmp_path, seed_tenders, profile):
     settings = Settings(database_url=f"sqlite:///{(tmp_path / 'web.db').as_posix()}", ai_provider="fake")
     engine = make_engine(settings.database_url)
     init_db(engine)
-    fake = FakeProvider([{"score": s, "reasons_en": [f"reason {s}"], "reasons_ar": [f"سبب {s}"]} for s in SCORES])
+    fake = FakeProvider([answer_for_total(s) for s in SCORES])  # computed score = s
     with session_scope(engine) as s:
         upsert_tenders(s, seed_tenders)
         save_profile(s, profile)

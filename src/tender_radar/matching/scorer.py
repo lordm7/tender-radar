@@ -5,7 +5,9 @@ For every tender:
      version and prompt version, reuse it (no AI call, no cost). Editing the
      prompt changes its fingerprint, so a calibrated prompt re-scores everything.
   2. If the free rule filter rejects it, store "filtered_out" with the reason.
-  3. Otherwise ask the AI for a score. If the provider is rate-limited, wait and
+  3. Otherwise ask the AI to judge fit, ability and risk (0-100 each); the
+     final score is computed here from those parts (total_score).
+     If the provider is rate-limited, wait and
      retry a few times. If it still fails, or returns bad JSON, store
      "unscored" and move on. One bad answer never stops the whole run, and
      unscored tenders are retried on the next run.
@@ -26,7 +28,7 @@ from sqlalchemy.orm import Session
 
 from tender_radar.ai.provider import AIError, LLMProvider, RateLimited
 from tender_radar.matching.rules import prefilter
-from tender_radar.models import ENGLISH_FIELDS, AIScore, CompanyProfile, MatchResult, Tender
+from tender_radar.models import ENGLISH_FIELDS, AIScore, CompanyProfile, MatchResult, ScoreParts, Tender
 from tender_radar.repository import (
     get_match, get_match_hash, get_tender_hash, list_tenders, save_match, set_tender_english,
 )
@@ -36,6 +38,25 @@ log = logging.getLogger(__name__)
 UNSCORED_REASON = "AI unavailable – will retry next run"
 # Free-tier quotas are counted per minute, so wait long enough for the window to move (15s, then 30s).
 RETRY_WAIT_SECONDS = 15
+# How much each AI part counts in the final score. Risk counts inverted: low risk scores high.
+WEIGHTS = {"fit": 0.5, "ability": 0.3, "risk": 0.2}
+BLOCKER_CAP = 40  # a hard blocker (e.g. a required licence the company lacks) caps the score
+
+
+def total_score(parts: ScoreParts) -> int:
+    """The final 0-100 score: 50% fit + 30% ability + 20% (100 - risk), capped at 40 with a blocker."""
+    # Whole-number maths in tenths, so 49.5 rounds up to 50 (floating point would give 49.4999...).
+    tenths = sum(round(WEIGHTS[k] * 10) * value for k, value in
+                 (("fit", parts.fit), ("ability", parts.ability), ("risk", 100 - parts.risk)))
+    total = (tenths + 5) // 10  # round half up
+    return min(total, BLOCKER_CAP) if parts.has_blocker else total
+
+
+def readable_reasons(parts: ScoreParts, lang: str) -> list[str]:
+    """The parts' reasons as a plain list (blocker first), for the digest and short views."""
+    blocker = parts.blocker_text(lang)
+    texts = [getattr(parts, f"{key}_{lang}") for key in ("fit", "ability", "risk")]
+    return ([blocker] if blocker else []) + texts
 
 
 @dataclass
@@ -131,7 +152,11 @@ def run_matching(
         else:
             save_match(
                 session,
-                MatchResult(**base, status="scored", score=ai.score, reasons_en=ai.reasons_en, reasons_ar=ai.reasons_ar),
+                MatchResult(
+                    **base, status="scored", score=total_score(ai),
+                    parts=ScoreParts(**ai.model_dump(exclude={"title_en", "agency_en"})),
+                    reasons_en=readable_reasons(ai, "en"), reasons_ar=readable_reasons(ai, "ar"),
+                ),
                 content_hash,
             )
             set_tender_english(session, tender.reference, ai.title_en, ai.agency_en)  # free: same call

@@ -226,6 +226,13 @@ dl.facts-list dd { margin: 2px 0 0; color: var(--text-2); }
 .checks { list-style: none; padding: 0; margin: 10px 0 0; }
 .check { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line); font-size: 0.88rem; }
 .check:first-child { border-top: none; }
+.parts { list-style: none; padding: 0; margin: 10px 0 0; }
+.part + .part { margin-top: 12px; }
+.part-head { display: flex; justify-content: space-between; align-items: baseline; color: var(--text-2); font-size: 0.9rem; }
+.part-head b { color: var(--head); }
+.part-bar { height: 6px; border-radius: 6px; background: var(--line-2); margin: 5px 0 4px; overflow: hidden; }
+.part-bar i { display: block; height: 100%; background: var(--accent); }
+.part.risk .part-bar i { background: var(--warn); }
 .term { display: inline-block; margin: 2px 2px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line-3); background: var(--panel-2); font-size: 0.82rem; }
 .check .mark { flex: none; width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 0.7rem; font-weight: 700; transform: translateY(3px); }
 .check.pass .mark { color: var(--accent-2); background: rgba(16, 185, 129, 0.12); }

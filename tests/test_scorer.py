@@ -2,6 +2,7 @@ from datetime import date
 
 import pytest
 
+from ai_answers import ai_answer
 from tender_radar.ai.provider import FakeProvider, RateLimited
 from tender_radar.db import session_scope
 from tender_radar.matching.scorer import build_score_prompt, run_matching
@@ -10,7 +11,7 @@ from tender_radar.repository import get_match, upsert_tenders
 TODAY = date(2026, 11, 15)
 PASSING = 9  # seed tenders that pass the rule filter (see test_rules.test_seed_data_split)
 FIRST_PASSING = "000000001001"
-VALID = {"score": 88, "reasons_en": ["strong fit"], "reasons_ar": ["مناسب جدا"]}
+VALID = ai_answer(88, 88, 12, reason="strong")  # total 88
 
 
 def no_sleep(_seconds: float) -> None:
@@ -100,7 +101,7 @@ def test_score_prompt_asks_for_english_title_but_never_sends_ours(seed_tenders, 
 
 
 def test_malformed_json_marks_unscored_and_continues(seeded, profile):
-    stats = run(seeded, profile, FakeProvider([{"score": "high"}]))
+    stats = run(seeded, profile, FakeProvider([{"fit": "high"}]))
     assert stats.unscored == 1
     assert stats.scored == PASSING - 1
     with session_scope(seeded) as s:
@@ -149,7 +150,7 @@ def test_quota_exhausted_stops_calling_ai_for_rest_of_run(seeded, profile):
 
 
 def test_out_of_range_score_is_rejected_not_stored(seeded, profile):
-    stats = run(seeded, profile, FakeProvider([{"score": 150, "reasons_en": ["x"], "reasons_ar": ["س"]}]))
+    stats = run(seeded, profile, FakeProvider([ai_answer(fit=150)]))
     assert stats.unscored == 1
     with session_scope(seeded) as s:
         assert get_match(s, FIRST_PASSING, profile.id).score is None
@@ -161,3 +162,11 @@ def test_unscored_tender_is_logged_with_the_reason(seeded, profile, caplog):
     with caplog.at_level("WARNING", logger="tender_radar.matching.scorer"):
         run(seeded, profile, FakeProvider([AIError("503 UNAVAILABLE")]))
     assert any(FIRST_PASSING in r.getMessage() and "503 UNAVAILABLE" in r.getMessage() for r in caplog.records)
+
+
+def test_prompt_asks_for_parts_not_a_total(seed_tenders, profile):
+    prompt = build_score_prompt(seed_tenders[0], profile)
+    for key in ("fit", "ability", "risk", "fit_en", "fit_ar", "ability_en", "risk_ar",
+                "blocker_en", "blocker_ar", "prepare_en", "prepare_ar", "title_en", "agency_en"):
+        assert f'"{key}"' in prompt, key
+    assert '"score"' not in prompt

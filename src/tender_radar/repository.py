@@ -14,7 +14,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from tender_radar.db import BookletPagesRow, BriefRow, MatchRow, ProfileRow, QuestionRow, TenderRow, _now
-from tender_radar.models import ENGLISH_FIELDS, BookletAnswer, BookletBrief, CompanyProfile, MatchResult, Tender
+from tender_radar.models import ENGLISH_FIELDS, BookletAnswer, BookletBrief, CompanyProfile, MatchResult, ScoreParts, Tender
 
 _TENDER_FIELDS = list(Tender.model_fields)
 
@@ -130,6 +130,7 @@ def _match_from_row(row: MatchRow) -> MatchResult:
         tender_reference=row.tender_reference, profile_id=row.profile_id,
         profile_version=row.profile_version, status=row.status, score=row.score,
         reasons_en=list(row.reasons_en or []), reasons_ar=list(row.reasons_ar or []),
+        parts=ScoreParts.model_validate(row.parts) if row.parts else None,
     )
 
 
@@ -155,6 +156,7 @@ def save_match(session: Session, m: MatchResult, content_hash: str) -> None:
     row.score = m.score
     row.reasons_en = list(m.reasons_en)
     row.reasons_ar = list(m.reasons_ar)
+    row.parts = m.parts.model_dump() if m.parts else None
     row.scored_at = _now()
     session.flush()
 

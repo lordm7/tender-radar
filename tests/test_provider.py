@@ -1,16 +1,17 @@
 import pytest
 
+from ai_answers import ai_answer
 from tender_radar.ai.provider import AIError, FakeProvider, RateLimited, get_provider
 from tender_radar.models import AIScore
 from tender_radar.settings import Settings
 
 
 def test_fake_returns_queued_then_default():
-    fake = FakeProvider([{"score": 91, "reasons_en": ["a"], "reasons_ar": ["ا"]}])
+    fake = FakeProvider([ai_answer(fit=91)])
     first = fake.generate_json("p1", AIScore)
     second = fake.generate_json("p2", AIScore)
-    assert first.score == 91
-    assert second == AIScore(score=70, reasons_en=["fake"], reasons_ar=["تجريبي"])
+    assert first.fit == 91
+    assert (second.fit, second.ability, second.risk, second.fit_en) == (80, 70, 30, "fake fit")
     assert fake.calls == ["p1", "p2"]
 
 

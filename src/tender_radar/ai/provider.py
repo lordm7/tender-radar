@@ -54,7 +54,10 @@ class LLMProvider(Protocol):
 
 
 _DEFAULTS: dict[type[BaseModel], BaseModel] = {
-    AIScore: AIScore(score=70, reasons_en=["fake"], reasons_ar=["تجريبي"]),
+    AIScore: AIScore(  # total 75 (see matching/scorer.total_score)
+        fit=80, ability=70, risk=30, fit_en="fake fit", fit_ar="تجريبي", ability_en="fake ability",
+        ability_ar="تجريبي", risk_en="fake risk", risk_ar="تجريبي",
+    ),
     BookletBrief: BookletBrief(
         scope="ملخص تجريبي",
         go_no_go=[ChecklistItem(item="ISO 27001", status="meets", note="تجريبي")],

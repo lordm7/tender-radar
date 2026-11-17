@@ -60,7 +60,26 @@
   {% endif %}
 
   <div class="grid-2">
-    {% if reasons %}
+    {% if parts %}
+    <section class="panel panel-pad">
+      <h2 class="lbl">{{ t("parts_title") }}</h2>
+      {% if parts.blocker %}<p class="alert alert-error" style="margin-top:10px"><b>{{ t("blocker") }}:</b> {{ parts.blocker }}</p>{% endif %}
+      <ul class="parts">
+        {% for p in parts.rows %}
+        <li class="part {{ p.key }}">
+          <div class="part-head"><span>{{ t("part_" ~ p.key) }} <span class="muted small">· {{ p.weight }}%{% if p.key == "risk" %} · {{ t("part_risk_hint") }}{% endif %}</span></span><b>{{ p.value }}</b></div>
+          <div class="part-bar"><i style="inline-size: {{ p.value }}%"></i></div>
+          <p class="muted small">{{ p.text }}</p>
+        </li>
+        {% endfor %}
+      </ul>
+      <p class="muted small" style="margin-top:10px">{{ t("parts_formula") }}</p>
+      {% if parts.prepare %}
+      <h3 class="lbl" style="margin-top:14px">{{ t("prepare") }}</h3>
+      <ul class="bullets" style="margin-top:6px">{% for x in parts.prepare %}<li>{{ x }}</li>{% endfor %}</ul>
+      {% endif %}
+    </section>
+    {% elif reasons %}
     <section class="panel panel-pad">
       <h2 class="lbl">{{ t("ai_reasons") if match and match.status == "scored" else t("why") }}</h2>
       <ul class="bullets" style="margin-top:10px">{% for x in reasons %}<li>{{ x }}</li>{% endfor %}</ul>

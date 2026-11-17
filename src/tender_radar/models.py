@@ -85,16 +85,55 @@ class MatchResult(BaseModel):
     score: int | None = Field(default=None, ge=0, le=100)
     reasons_en: list[str] = []
     reasons_ar: list[str] = []
+    parts: "ScoreParts | None" = None  # the AI's fit/ability/risk; None for rule results and older scores
 
 
-class AIScore(BaseModel):
-    """The JSON shape we ask the AI to return when scoring a tender."""
+# Blocker values that really mean "no blocker" (compared lower-case, without dots or dashes).
+_NO_BLOCKER = {"", "none", "null", "n/a", "na", "nil", "no", "no blocker", "لا يوجد", "لا شيء", "لا"}
 
-    score: int = Field(ge=0, le=100)
-    reasons_en: list[str]
-    reasons_ar: list[str]
+
+class ScoreParts(BaseModel):
+    """The AI's judgement of one tender in three parts, each 0-100 with one reason per language.
+
+    fit: is the main work what the company sells? ability: can it deliver it?
+    risk: what could go wrong (higher = riskier). The final score is computed
+    from these in Python (matching/scorer.py), not by the AI.
+    """
+
+    fit: int = Field(ge=0, le=100)
+    ability: int = Field(ge=0, le=100)
+    risk: int = Field(ge=0, le=100)
+    fit_en: str
+    fit_ar: str
+    ability_en: str
+    ability_ar: str
+    risk_en: str
+    risk_ar: str
+    blocker_en: str | None = None  # a hard reason the company cannot bid, if any
+    blocker_ar: str | None = None
+    prepare_en: list[str] = []  # things to get ready before bidding
+    prepare_ar: list[str] = []
+
+    def blocker_text(self, lang: str) -> str | None:
+        """The blocker sentence in `lang`, or None. Words like "None" or "N/A" mean no blocker:
+        the AI sometimes writes them instead of JSON null."""
+        text = ((self.blocker_en if lang == "en" else self.blocker_ar) or "").strip()
+        return None if text.lower().strip(" .-—") in _NO_BLOCKER else text
+
+    @property
+    def has_blocker(self) -> bool:
+        """True when either language names a real blocker (it caps the score)."""
+        return self.blocker_text("en") is not None or self.blocker_text("ar") is not None
+
+
+class AIScore(ScoreParts):
+    """The JSON shape we ask the AI to return when scoring a tender (the parts plus translations)."""
+
     title_en: str | None = None  # English translation of the tender title, for English pages
     agency_en: str | None = None
+
+
+MatchResult.model_rebuild()  # MatchResult names ScoreParts before it is defined
 
 
 class ChecklistItem(BaseModel):

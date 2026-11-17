@@ -34,7 +34,7 @@ from tender_radar.ai.provider import AIError, LLMProvider, get_provider
 from tender_radar.calendar_ics import tender_ics
 from tender_radar.db import init_db, make_engine, session_scope
 from tender_radar.matching.rules import check_rules
-from tender_radar.matching.scorer import run_matching
+from tender_radar.matching.scorer import WEIGHTS, run_matching
 from tender_radar.models import BookletAnswer, BookletBrief, CompanyProfile, MatchResult, Tender
 from tender_radar.reader.ask import answer_question
 from tender_radar.reader.brief import build_brief
@@ -468,6 +468,25 @@ def render_dashboard(
     )
 
 
+def score_parts(match: MatchResult | None, lang: str) -> dict | None:
+    """The AI's fit / ability / risk for the tender page, in `lang`; None for older scores without parts."""
+    if match is None or match.status != "scored" or match.parts is None:
+        return None
+    p = match.parts
+    rows = [
+        {"key": key, "value": getattr(p, key), "weight": round(WEIGHTS[key] * 100), "text": getattr(p, f"{key}_{lang}")}
+        for key in ("fit", "ability", "risk")
+    ]
+    blocker = p.blocker_text(lang)
+    if blocker is None and p.has_blocker:  # the AI wrote the blocker in the other language only
+        blocker = i18n.t(lang, "blocker_unnamed")
+    return {
+        "rows": rows,
+        "blocker": blocker,
+        "prepare": p.prepare_en if lang == "en" else p.prepare_ar,
+    }
+
+
 def verdict_key(match: MatchResult | None) -> str | None:
     """The plain-words call for a tender, using the same bands as the score colours (80+, 50+)."""
     if match is None or match.status == "unscored":
@@ -567,6 +586,7 @@ def render_tender(
         days_label=deadline_label(tender.deadline, today, lang),
         booklet=booklet_label(tender, lang),
         verdict=verdict_key(match),
+        parts=score_parts(match, lang),
         checks=profile_check(tender, profile, today, lang),
         timeline=tender_timeline(tender, today, lang),
         **_ctx(lang, links, today, has_sample_brief=_has_sample(session)),

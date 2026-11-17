@@ -65,6 +65,7 @@ class MatchRow(Base):
     score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     reasons_en: Mapped[list] = mapped_column(JSON, default=list)
     reasons_ar: Mapped[list] = mapped_column(JSON, default=list)
+    parts: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # the AI's fit/ability/risk
     scored_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 

@@ -29,7 +29,7 @@ def test_profile_version_ignores_name():
 
 def test_ai_score_rejects_out_of_range():
     with pytest.raises(ValidationError):
-        AIScore(score=101, reasons_en=["x"], reasons_ar=["س"])
+        AIScore(fit=101, ability=50, risk=50, fit_en="x", fit_ar="س", ability_en="x", ability_ar="س", risk_en="x", risk_ar="س")
 
 
 def test_tender_round_trips_etimad_fields():
