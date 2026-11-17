@@ -51,6 +51,8 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - Arabic text gets `dir="auto"`. Match text through `arabic.normalize()`. PDF text goes through NFKC (`clean_text`).
 - All seed data is synthetic, uses fictional agencies and is labelled synthetic. No employer (AMMN) data and no personal data.
 - Git identity for this repo (local config): Mohammed Alzalam with the personal Gmail address, never the work address. Local commits are OK; push only when the user asks.
+- Score maths uses whole-number tenths (`total_score`, `score_formula`): never `round()` or float sums near a band edge (49.5 must become 50).
+- `t()` returns plain text, so HTML passed into it (an `orig` span) gets escaped. Use `_tr()` in web/app.py when a translated sentence carries a marked value.
 
 ## Decisions
 - SQLite instead of PostgreSQL (swappable via `TR_DATABASE_URL`). Vanilla JS filters instead of HTMX, so the static demo behaves like the live app.
@@ -89,6 +91,7 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - Headless screenshots: `"/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" --headless=new --window-size=1280,900 --screenshot=OUT.png URL` (the Chrome extension window can't be widened).
 - Headless Edge has a minimum window width (~500px): a `--window-size=400,…` screenshot looks cut off on the right even for correct pages. Don't treat that as a layout bug.
 - Checking JS changes in Chrome: the browser keeps a cached `app.js` even with a new page URL. Run `await fetch('<path>/static/app.js', {cache: 'reload'})` in the page, then reload, before testing.
+- Files in this repo mix CRLF and LF (no `.gitattributes`). Python edit scripts that read/write text flip them and inflate the diff to whole files: keep each file's original line ending, and check `git diff --stat` against `git diff --ignore-cr-at-eol --stat` before committing.
 - `scripts/make_sample_booklet.py` needs Windows Arial (`C:/Windows/Fonts`) to render Arabic correctly.
 
 ## Pending
@@ -101,6 +104,7 @@ The owner designs the system and directs AI coding agents, and must be able to e
 - [x] Plan 2 built on branch feat/plan2 (2026-11-15): Etimad-shaped data, smarter rules, private importer, two companies, rolling demo, digest, daily workflow, README. 134 tests. Final review fixes done; deferred minors are in the Plan 2 ledger.
 - [x] Redesign built on `feat/redesign` (2026-11-16, plan `docs/superpowers/plans/2026-11-16-tender-radar-redesign.md`), final review fixes done, 200 tests. NOT merged/pushed: the user reviews it, gives the LinkedIn URL, then merges.
 - [ ] NEXT (user, 2026-11-17): more redesign changes are coming first; the LinkedIn URL arrives once the project is finished. Don't merge `feat/redesign` until the user says so.
+- [x] 2026-11-17 on `feat/redesign`: score parts (`8c0590d`), How it works page (`6a178cd`), matches page by verdict (`da6334f`); 290 tests; study guide v2 published. Deferred minors in `.superpowers/sdd/2026-11-17-*/progress.md`.
 - [ ] Redesign deferred minors (ledger `.superpowers/sdd/2026-11-16-tender-radar-redesign/progress.md`): orig tag lost in JS select, filter hides selected tender, brief lang switch on old sample briefs, `_orig` isascii guess, profile form `date.today()`, Arabic words in English AI reasons
 - [ ] User decisions: make repo public (for Pages), Gmail app password for the digest, OK to store GEMINI_API_KEY as a GitHub secret, send the Etimad letter
 - [x] Plan 3 built on branch `feat/plan3` (2026-11-16): Ask the booklet, calibrated eval, README update, video script (`docs/demo-video-script.md`). 154 tests. Merged into main and pushed 2026-11-16 (3aa51df), CI green.
