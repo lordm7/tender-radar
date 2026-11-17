@@ -84,3 +84,41 @@ def test_region_inferred_from_agency(profile):
 def test_no_region_anywhere_passes(profile):
     p = profile.model_copy(update={"regions": ["الرياض"]})
     assert prefilter(make_tender(region=None, agency="وزارة الخدمات الرقمية"), p, TODAY).passed
+
+
+# --- check_rules: every rule's result, for the tender page's "Profile check" ---
+
+from tender_radar.matching.rules import check_rules  # noqa: E402
+
+
+def by_name(checks):
+    return {c.name: c for c in checks}
+
+
+def test_check_rules_reports_every_rule_when_all_pass(profile):
+    checks = by_name(check_rules(make_tender(title="تطوير برمجيات سحابية"), profile, TODAY))
+    assert list(checks) == ["agency", "deadline", "value", "region", "keywords"]
+    assert all(c.passed for c in checks.values())
+    assert checks["value"].detail == {"value": 1_000_000, "min": 200_000, "max": 20_000_000}
+    assert checks["region"].detail == {"region": "الرياض"}
+    assert "برمجيات" in checks["keywords"].detail["terms"]
+
+
+def test_check_rules_keeps_going_after_a_failure(profile):
+    checks = by_name(check_rules(make_tender(region="جازان", estimated_value_sar=50), profile, TODAY))
+    assert checks["value"].passed is False and checks["value"].reason == "value outside range"
+    assert checks["region"].passed is False and checks["region"].reason == "region not covered"
+    assert checks["keywords"].passed is True  # still evaluated
+
+
+def test_check_rules_unknown_when_tender_lacks_data(profile):
+    t = make_tender(deadline=None, estimated_value_sar=None, region=None, agency="جهة")
+    checks = by_name(check_rules(t, profile, TODAY))
+    assert checks["deadline"].passed is None
+    assert checks["value"].passed is None
+    assert checks["region"].passed is None
+
+
+def test_prefilter_agrees_with_first_failed_check(profile):
+    t = make_tender(region="جازان", estimated_value_sar=50)
+    assert prefilter(t, profile, TODAY).reasons == ["value outside range"]

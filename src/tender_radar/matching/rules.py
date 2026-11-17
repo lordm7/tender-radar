@@ -22,32 +22,60 @@ class RuleResult:
     reasons: list[str] = field(default_factory=list)
 
 
-def prefilter(tender: Tender, profile: CompanyProfile, today: date) -> RuleResult:
-    """Decide whether a tender is worth sending to the AI for scoring."""
-    excluded = {normalize(a) for a in profile.excluded_agencies}
-    if normalize(tender.agency) in excluded:
-        return RuleResult(False, ["excluded agency"])
+@dataclass
+class RuleCheck:
+    """One rule's outcome. passed=None means the tender lacks the data to check it
+    (no deadline, no value, unknown region); like a pass, it never filters a tender out."""
 
-    if tender.deadline is not None and tender.deadline < today:
-        return RuleResult(False, ["deadline passed"])
+    name: str  # agency | deadline | value | region | keywords
+    passed: bool | None
+    reason: str = ""  # the stored filter reason when it fails, e.g. "value outside range"
+    detail: dict = field(default_factory=dict)  # values the tender page shows
+
+
+def check_rules(tender: Tender, profile: CompanyProfile, today: date) -> list[RuleCheck]:
+    """Run every rule and report each result (the tender page's "Profile check")."""
+    excluded = {normalize(a) for a in profile.excluded_agencies}
+    checks = [RuleCheck("agency", normalize(tender.agency) not in excluded, "excluded agency")]
+
+    if tender.deadline is None:
+        checks.append(RuleCheck("deadline", None))
+    else:
+        checks.append(RuleCheck("deadline", tender.deadline >= today, "deadline passed", {"deadline": tender.deadline}))
 
     value = tender.estimated_value_sar
-    if value is not None:
-        if profile.min_value_sar is not None and value < profile.min_value_sar:
-            return RuleResult(False, ["value outside range"])
-        if profile.max_value_sar is not None and value > profile.max_value_sar:
-            return RuleResult(False, ["value outside range"])
+    low, high = profile.min_value_sar, profile.max_value_sar
+    if value is None:
+        checks.append(RuleCheck("value", None))
+    else:
+        inside = (low is None or value >= low) and (high is None or value <= high)
+        checks.append(RuleCheck("value", inside, "value outside range", {"value": value, "min": low, "max": high}))
 
     region = tender.region or infer_region(tender.agency)
-    if profile.regions and region:
-        if normalize(region) not in {normalize(r) for r in profile.regions}:
-            return RuleResult(False, ["region not covered"])
+    if not profile.regions:
+        checks.append(RuleCheck("region", True, detail={"region": None}))  # the company covers every region
+    elif not region:
+        checks.append(RuleCheck("region", None))
+    else:
+        covered = normalize(region) in {normalize(r) for r in profile.regions}
+        checks.append(RuleCheck("region", covered, "region not covered", {"region": region}))
 
     haystack = normalize(f"{tender.title} {tender.activity} {tender.description}")
     matched = [term for term in profile.keywords + profile.activities if _contains(haystack, normalize(term))]
-    if not matched:
-        return RuleResult(False, ["no keyword match"])
-    return RuleResult(True, [f"matched: {term}" for term in matched])
+    checks.append(RuleCheck("keywords", bool(matched), "no keyword match", {"terms": matched}))
+    return checks
+
+
+def prefilter(tender: Tender, profile: CompanyProfile, today: date) -> RuleResult:
+    """Decide whether a tender is worth sending to the AI for scoring.
+
+    The first failed rule (in check_rules order) decides the reason.
+    """
+    checks = check_rules(tender, profile, today)
+    failed = next((c for c in checks if c.passed is False), None)
+    if failed is not None:
+        return RuleResult(False, [failed.reason])
+    return RuleResult(True, [f"matched: {term}" for term in checks[-1].detail["terms"]])
 
 
 def _contains(haystack: str, term: str) -> bool:

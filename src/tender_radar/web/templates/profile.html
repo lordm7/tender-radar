@@ -1,13 +1,6 @@
 {% extends "base.html" %}
+{% from "_macros.html" import profile_fields with context %}
 {% block title %}{{ t("bidding_profile") }}{% endblock %}
-{# Field values are shown exactly as stored (the company's own matching terms);
-   every label and hint is in the page language. #}
-{% macro area(field, label, hint) -%}
-  <label class="field">
-    <span>{{ label }}</span><small>{{ hint }}</small>
-    <textarea name="{{ field }}" rows="5" dir="auto">{{ values[field] }}</textarea>
-  </label>
-{%- endmacro %}
 {% block content %}
 <div class="wrap stack">
   <a class="back" href="{{ links.matches() }}">{{ "→" if lang == "ar" else "←" }} {{ t("back_to_matches") }}</a>
@@ -17,21 +10,7 @@
   </div>
   {% if error %}<div role="alert" class="alert alert-error">{{ error }}</div>{% endif %}
   <form method="post" action="{{ links.profile() }}" class="panel panel-pad form-grid">
-    <label class="field"><span>{{ t("company_name") }}</span>
-      <input name="name" value="{{ values.name }}" required dir="ltr"></label>
-    <label class="field"><span>{{ t("company_name_ar") }}</span>
-      <input name="name_ar" value="{{ values.name_ar }}" dir="rtl"></label>
-    {{ area("activities", t("activities"), t("activities_hint")) }}
-    {{ area("keywords", t("keywords"), t("keywords_hint")) }}
-    {{ area("certifications", t("certifications"), t("one_per_line")) }}
-    {{ area("regions", t("regions_covered"), t("regions_hint")) }}
-    {{ area("excluded_agencies", t("excluded_agencies"), t("one_per_line")) }}
-    <div class="stack">
-      <label class="field"><span>{{ t("min_value") }}</span>
-        <input name="min_value_sar" value="{{ values.min_value_sar }}" inputmode="numeric" dir="ltr"></label>
-      <label class="field"><span>{{ t("max_value") }}</span>
-        <input name="max_value_sar" value="{{ values.max_value_sar }}" inputmode="numeric" dir="ltr"></label>
-    </div>
+    {{ profile_fields(values) }}
     <div class="full"><button class="btn btn-primary">{{ t("save_rematch") }}</button></div>
   </form>
 </div>

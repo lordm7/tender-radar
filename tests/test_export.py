@@ -176,3 +176,33 @@ def test_read_only_app_hides_imported_tender(db_settings):
     url = "/en/c/najd-digital/tenders/999000000778"
     assert TestClient(create_app(db_settings, today=TODAY, read_only=True)).get(url).status_code == 404
     assert TestClient(create_app(db_settings, today=TODAY)).get(url).status_code == 200
+
+
+def test_export_has_add_company_preview(db_settings, tmp_path):
+    out = tmp_path / "site"
+    run_export(db_settings, out)
+    for lang in ("en", "ar"):
+        page = out / lang / "companies" / "new.html"
+        assert page.exists()
+        html = page.read_text(encoding="utf-8")
+        assert "disabled" in html and "<form" not in html
+        assert f'href="../{lang}/companies/new.html"' in (out / lang / "index.html").read_text(encoding="utf-8")
+    assert "runs locally" in (out / "en" / "companies" / "new.html").read_text(encoding="utf-8")
+
+
+def test_no_page_claims_open_source(db_settings, tmp_path):
+    out = tmp_path / "site"
+    run_export(db_settings, out)
+    for html in pages(out).values():
+        assert "Open source" not in html and "مفتوح المصدر" not in html
+
+
+def test_export_writes_calendar_files(db_settings, tmp_path):
+    out = tmp_path / "site"
+    run_export(db_settings, out)
+    ics = (out / "en" / "calendar" / "000000001004.ics").read_bytes()
+    assert ics.startswith(b"BEGIN:VCALENDAR\r\n") and b"\r\r\n" not in ics
+    assert b"DTSTART:20270105T100000Z" in ics
+    assert not (out / "en" / "calendar" / "000000001006.ics").exists()  # no deadline, no calendar
+    page = (out / "en" / "c" / "najd-digital" / "tenders" / "000000001004.html").read_text(encoding="utf-8")
+    assert 'href="../../../../en/calendar/000000001004.ics"' in page

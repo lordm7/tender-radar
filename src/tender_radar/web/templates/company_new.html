@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "_macros.html" import profile_fields with context %}
+{% block title %}{{ t("add_company") }}{% endblock %}
+{# Two ways in: upload a company profile (the AI pre-fills the form) or type the
+   details. Nothing is saved until the person submits the form. The read-only
+   demo shows the same page with every field disabled and no <form>. #}
+{% block content %}
+<div class="wrap stack" style="max-width:960px">
+  <div>
+    <h1>{{ t("add_company") }}</h1>
+    <p class="muted" style="margin-top:4px;max-width:70ch">{{ t("add_company_sub") }}</p>
+  </div>
+  {% if links.read_only %}<div class="alert alert-warn">{{ t("demo_only") }}</div>{% endif %}
+  {% if error %}<div role="alert" class="alert alert-error">{{ error }}</div>{% endif %}
+
+  {% if not prefilled %}
+  {% set upload_tag = "div" if links.read_only else "form" %}
+  <{{ upload_tag }} {% if not links.read_only %}method="post" action="{{ links.add_company_extract() }}" enctype="multipart/form-data" {% endif %}class="panel dropzone stack">
+    <h2 class="lbl">{{ t("upload_profile") }}</h2>
+    <p class="muted">{{ t("upload_profile_hint", mb=max_mb) }}</p>
+    <label class="field" style="max-width:420px;margin-inline:auto"><span class="sr-only">{{ t("profile_file") }}</span>
+      <input type="file" name="file" accept="application/pdf" required{{ " disabled" if links.read_only }}></label>
+    <div><button class="btn btn-primary"{{ " disabled" if links.read_only }}>{{ t("fill_with_ai") }}</button></div>
+    <p class="muted small">{{ t("privacy_note") }}</p>
+  </{{ upload_tag }}>
+  {% endif %}
+
+  {% if prefilled %}<div class="alert alert-warn">{{ t("prefilled") }}</div>{% endif %}
+  <div>
+    <h2 class="lbl">{{ t("manual_title") }}</h2>
+    <p class="muted small" style="margin-top:4px">{{ t("manual_hint") }}</p>
+  </div>
+  {% if links.read_only %}
+  <div class="panel panel-pad form-grid">
+    {{ profile_fields(values, disabled=True) }}
+    <div class="full"><button class="btn btn-primary" disabled>{{ t("save_and_match") }}</button></div>
+  </div>
+  {% else %}
+  <form method="post" action="{{ links.add_company() }}" class="panel panel-pad form-grid">
+    {{ profile_fields(values) }}
+    <div class="full"><button class="btn btn-primary">{{ t("save_and_match") }}</button></div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

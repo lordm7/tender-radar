@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Callable
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, PackageLoader, select_autoescape
 from markupsafe import Markup, escape
@@ -31,12 +31,15 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from tender_radar.ai.provider import AIError, LLMProvider, get_provider
+from tender_radar.calendar_ics import tender_ics
 from tender_radar.db import init_db, make_engine, session_scope
+from tender_radar.matching.rules import check_rules
 from tender_radar.matching.scorer import run_matching
 from tender_radar.models import BookletAnswer, BookletBrief, CompanyProfile, MatchResult, Tender
 from tender_radar.reader.ask import answer_question
 from tender_radar.reader.brief import build_brief
 from tender_radar.reader.pdf_text import UnreadablePDF, extract_pages
+from tender_radar.reader.profile_extract import extract_profile, new_profile_id
 from tender_radar.regions import infer_region
 from tender_radar.repository import (
     get_brief,
@@ -107,16 +110,21 @@ def _page_path(page: tuple, static_files: bool) -> str:
         paths = {
             "home": lambda: "index.html",
             "companies": lambda: "companies.html",
+            "add_company": lambda: "companies/new.html",
             "dashboard": lambda c: f"c/{c}/index.html",
             "tender": lambda c, ref: f"c/{c}/tenders/{tender_slug(ref)}.html",
+            "calendar": lambda ref: f"calendar/{tender_slug(ref)}.ics",
             "brief_sample": lambda: "briefs/sample.html",
         }
     else:
         paths = {
             "home": lambda: "",
             "companies": lambda: "companies",
+            "add_company": lambda: "companies/new",
+            "add_company_extract": lambda: "companies/new/extract",
             "dashboard": lambda c: f"c/{c}/",
             "tender": lambda c, ref: f"c/{c}/tenders/{ref}",
+            "calendar": lambda ref: f"calendar/{ref}.ics",
             "profile": lambda c: f"c/{c}/profile",
             "reader": lambda: "reader",
             "brief_sample": lambda: "briefs/sample",
@@ -166,6 +174,12 @@ class Links:
     def companies(self) -> str:
         return self._url(("companies",))
 
+    def add_company(self) -> str:
+        return self._url(("add_company",))
+
+    def add_company_extract(self) -> str:
+        return self._url(("add_company_extract",))
+
     def demo(self) -> str:
         """The "Live demo" target: the chooser, or the dashboard when there is one company."""
         return self.dashboard_of(self.only_company) if self.only_company else self.companies()
@@ -179,6 +193,9 @@ class Links:
 
     def tender(self, reference: str) -> str:
         return self._url(("tender", self.company, reference))
+
+    def calendar(self, reference: str) -> str:
+        return self._url(("calendar", reference))
 
     def sample_brief(self) -> str:
         return self._url(("brief_sample",))
@@ -451,6 +468,75 @@ def render_dashboard(
     )
 
 
+def verdict_key(match: MatchResult | None) -> str | None:
+    """The plain-words call for a tender, using the same bands as the score colours (80+, 50+)."""
+    if match is None or match.status == "unscored":
+        return None
+    if match.status == "filtered_out" or match.score is None or match.score < 50:
+        return "verdict_skip"
+    return "verdict_bid" if match.score >= 80 else "verdict_consider"
+
+
+def _tr(lang: str, key: str, **parts) -> Markup:
+    """Like i18n.t, but the inserted parts may be Markup (e.g. an "original" span); plain parts are escaped."""
+    return Markup(escape(i18n.STRINGS[lang][key])).format(**parts)
+
+
+def profile_check(tender: Tender, profile: CompanyProfile, today: date, lang: str) -> list[dict]:
+    """Every free rule's result for this tender, as page rows: {"status": pass|fail|unknown, "text"}."""
+    def sar(value: float) -> str:
+        return i18n.fmt_sar(lang, value)
+
+    rows = []
+    for c in check_rules(tender, profile, today):
+        state = {True: "ok", False: "bad", None: "unknown"}[c.passed]
+        parts: dict = {}
+        if c.name == "value" and c.passed is not None:
+            low, high = c.detail["min"], c.detail["max"]
+            parts["value"] = sar(c.detail["value"])
+            if low is None and high is None:
+                state = "any"
+            elif low is not None and high is not None:
+                parts["range"] = i18n.t(lang, "range_both", min=sar(low), max=sar(high))
+            elif low is not None:
+                parts["range"] = i18n.t(lang, "range_min", min=sar(low))
+            else:
+                parts["range"] = i18n.t(lang, "range_max", max=sar(high))
+        elif c.name == "region" and c.passed is not None:
+            if c.detail["region"] is None:
+                state = "all"
+            else:
+                parts["region"] = _orig(*i18n.vocab(lang, c.detail["region"]), lang, tag=False)
+        elif c.name == "keywords" and c.passed:
+            # One chip per term: no commas, so mixed Arabic/English terms never reorder each other.
+            terms = [_orig(term, (lang == "en") != term.isascii(), lang, tag=False) for term in c.detail["terms"]]
+            parts["terms"] = Markup(" ").join(Markup('<span class="term">{}</span>').format(x) for x in terms)
+        rows.append({
+            "status": {True: "pass", False: "fail", None: "unknown"}[c.passed],
+            "text": _tr(lang, f"check_{c.name}_{state}", **parts),
+        })
+    return rows
+
+
+def tender_timeline(tender: Tender, today: date, lang: str) -> dict | None:
+    """Published → questions close → deadline on one bar, with today's position (all in % of the bar)."""
+    if tender.deadline is None:
+        return None
+    start = min(d for d in (tender.published_on, today) if d is not None)
+    end = max(tender.deadline, today)
+    span = max((end - start).days, 1)
+
+    def pct(d: date) -> float:
+        return round(100 * (d - start).days / span, 1)
+
+    dates = [("tl_published", tender.published_on), ("tl_inquiries", tender.inquiry_deadline), ("tl_deadline", tender.deadline)]
+    points = [
+        {"key": key, "pct": pct(d), "past": d < today, "date": i18n.fmt_date(lang, d)}
+        for key, d in dates if d is not None
+    ]
+    return {"points": points, "today": pct(today)}
+
+
 def render_tender(
     session: Session,
     ref: str,
@@ -480,6 +566,9 @@ def render_tender(
         region_inferred=inferred,
         days_label=deadline_label(tender.deadline, today, lang),
         booklet=booklet_label(tender, lang),
+        verdict=verdict_key(match),
+        checks=profile_check(tender, profile, today, lang),
+        timeline=tender_timeline(tender, today, lang),
         **_ctx(lang, links, today, has_sample_brief=_has_sample(session)),
     )
 
@@ -492,6 +581,50 @@ def _lines(text: str) -> list[str]:
 def _number(text: str) -> float | None:
     text = text.strip().replace(",", "")
     return float(text) if text else None
+
+
+PROFILE_FIELDS = (
+    "name", "name_ar", "activities", "keywords", "certifications", "regions",
+    "excluded_agencies", "min_value_sar", "max_value_sar",
+)
+
+
+def profile_from_form(profile_id: str, form: dict, lang: str) -> tuple[CompanyProfile | None, str | None]:
+    """Profile form text -> (profile, None), or (None, error message in the page language)."""
+    if not form.get("name", "").strip():
+        return None, i18n.t(lang, "err_name")
+    try:
+        profile = CompanyProfile(
+            id=profile_id, name=form["name"].strip(), name_ar=form.get("name_ar", "").strip() or None,
+            activities=_lines(form.get("activities", "")), keywords=_lines(form.get("keywords", "")),
+            certifications=_lines(form.get("certifications", "")), regions=_lines(form.get("regions", "")),
+            excluded_agencies=_lines(form.get("excluded_agencies", "")),
+            min_value_sar=_number(form.get("min_value_sar", "")), max_value_sar=_number(form.get("max_value_sar", "")),
+        )
+    except ValidationError:  # checked first: Pydantic's ValidationError is also a ValueError
+        return None, i18n.t(lang, "err_value_range")
+    except ValueError:
+        return None, i18n.t(lang, "err_numbers")
+    return profile, None
+
+
+def render_add_company(
+    session: Session,
+    today: date,
+    read_only: bool,
+    static_files: bool = False,
+    lang: str = "en",
+    values: dict | None = None,
+    error: str | None = None,
+    prefilled: bool = False,
+) -> str:
+    """"Add your company": upload a profile PDF or type the details. Read-only = disabled preview."""
+    links = _links(lang, read_only, static_files, ("add_company",), session=session)
+    return templates.get_template("company_new.html").render(
+        values=values or {f: "" for f in PROFILE_FIELDS}, error=error, prefilled=prefilled,
+        max_mb=MAX_UPLOAD_BYTES // (1024 * 1024),
+        **_ctx(lang, links, today, has_sample_brief=_has_sample(session)),
+    )
 
 
 def render_profile_form(
@@ -631,6 +764,13 @@ def create_app(
                 return RedirectResponse(f"/{lang}/c/{profiles[0].id}/", status_code=307)
             return HTMLResponse(render_companies(s, current_day(), read_only, lang=lang))
 
+    @app.get("/{lang}/companies/new", response_class=HTMLResponse)
+    def add_company_page(lang: str) -> str:
+        # Shown in read-only mode too, as a disabled preview (the POST routes below are live-only).
+        check_lang(lang)
+        with session_scope(engine) as s:
+            return render_add_company(s, current_day(), read_only, lang=lang)
+
     @app.get("/{lang}/c/{profile_id}/", response_class=HTMLResponse)
     def dashboard(lang: str, profile_id: str) -> str:
         check_lang(lang)
@@ -655,6 +795,19 @@ def create_app(
                 session=s,
             )
 
+    @app.get("/{lang}/calendar/{reference}.ics")
+    def tender_calendar(lang: str, reference: str) -> Response:
+        """The tender's key dates as a calendar file ("Add to calendar")."""
+        check_lang(lang)
+        with session_scope(engine) as s:
+            tender = get_tender(s, reference)
+        if tender is None or tender.deadline is None or (read_only and not is_public(tender)):
+            raise HTTPException(404, "No calendar for this tender")
+        return Response(
+            tender_ics(tender, lang), media_type="text/calendar; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="tender-{tender_slug(reference)}.ics"'},
+        )
+
     @app.get("/{lang}/briefs/sample", response_class=HTMLResponse)
     def sample_brief(lang: str) -> str:
         check_lang(lang)
@@ -674,6 +827,21 @@ def create_app(
 
     if not read_only:
 
+        def read_pdf_upload(file: UploadFile) -> tuple[list[str] | None, tuple[str, int, dict] | None]:
+            """Uploaded PDF -> (page texts, None), or (None, (error key, HTTP status, format values))."""
+            content = file.file.read(MAX_UPLOAD_BYTES + 1)
+            if not content:
+                return None, ("err_empty_file", 400, {})
+            if len(content) > MAX_UPLOAD_BYTES:
+                return None, ("err_too_big", 413, {"mb": MAX_UPLOAD_BYTES // (1024 * 1024)})
+            with tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "upload.pdf"
+                path.write_bytes(content)
+                try:
+                    return extract_pages(path), None
+                except UnreadablePDF as exc:
+                    return None, (exc.code, 400, {})
+
         def reader_error(lang: str, key: str, status: int, **fmt) -> HTMLResponse:
             with session_scope(engine) as s:
                 html = render_reader(list_profiles(s), i18n.t(lang, key, **fmt), lang=lang, session=s)
@@ -690,19 +858,11 @@ def create_app(
             # A plain `def` route runs in a worker thread, so reading the PDF and
             # waiting for the AI does not freeze the app for other visitors.
             check_lang(lang)
-            content = file.file.read(MAX_UPLOAD_BYTES + 1)
-            if not content:
-                return reader_error(lang, "err_empty_file", 400)
-            if len(content) > MAX_UPLOAD_BYTES:
-                return reader_error(lang, "err_too_big", 413, mb=MAX_UPLOAD_BYTES // (1024 * 1024))
+            pages, problem = read_pdf_upload(file)
+            if problem is not None:
+                key, status, fmt = problem
+                return reader_error(lang, key, status, **fmt)
             filename = Path(file.filename or "booklet.pdf").name
-            with tempfile.TemporaryDirectory() as tmp:
-                path = Path(tmp) / "upload.pdf"
-                path.write_bytes(content)
-                try:
-                    pages = extract_pages(path)
-                except UnreadablePDF as exc:
-                    return reader_error(lang, exc.code, 400)
             with session_scope(engine) as s:
                 profiles = list_profiles(s)
                 profile = next((p for p in profiles if p.id == profile_id), profiles[0] if profiles else None)
@@ -765,19 +925,9 @@ def create_app(
                 current = get_profile(s, profile_id)
                 if current is None:
                     raise HTTPException(404, "No company with this id")
-                try:
-                    updated = CompanyProfile(
-                        id=current.id, name=name.strip(), name_ar=name_ar.strip() or None,
-                        activities=_lines(activities), keywords=_lines(keywords),
-                        certifications=_lines(certifications), regions=_lines(regions),
-                        excluded_agencies=_lines(excluded_agencies),
-                        min_value_sar=_number(min_value_sar), max_value_sar=_number(max_value_sar),
-                    )
-                except ValidationError:
-                    message = i18n.t(lang, "err_value_range")
-                    return HTMLResponse(render_profile_form(current, form, message, lang, s), status_code=422)
-                except ValueError:
-                    return HTMLResponse(render_profile_form(current, form, i18n.t(lang, "err_numbers"), lang, s), status_code=422)
+                updated, error = profile_from_form(current.id, form, lang)
+                if updated is None:
+                    return HTMLResponse(render_profile_form(current, form, error, lang, s), status_code=422)
                 save_profile(s, updated)
             # Saved first, so a missing AI setup never throws away the user's edits.
             try:
@@ -788,6 +938,62 @@ def create_app(
             with session_scope(engine) as s:
                 run_matching(s, updated, ai, current_day())
             return RedirectResponse(f"/{lang}/c/{updated.id}/", status_code=303)
+
+        @app.post("/{lang}/companies/new/extract", response_class=HTMLResponse)
+        def add_company_extract(lang: str, file: UploadFile = File(...)):
+            """Read a company-profile PDF and show the form pre-filled. Nothing is saved here."""
+            check_lang(lang)
+
+            def page(status: int, values: dict | None = None, error: str | None = None) -> HTMLResponse:
+                with session_scope(engine) as s:
+                    html = render_add_company(s, current_day(), False, lang=lang, values=values, error=error,
+                                              prefilled=values is not None)
+                return HTMLResponse(html, status_code=status)
+
+            pages, problem = read_pdf_upload(file)
+            if problem is not None:
+                key, status, fmt = problem
+                return page(status, error=i18n.t(lang, key, **fmt))
+            try:
+                draft = extract_profile(pages, get_ai())
+            except (AIError, ValidationError, ValueError):  # AI down, bad answer, or AI not configured
+                return page(502, error=i18n.t(lang, "err_extract_ai"))
+            return page(200, values=draft.form_values())
+
+        @app.post("/{lang}/companies/new")
+        def add_company_save(
+            lang: str,
+            name: str = Form(""),
+            name_ar: str = Form(""),
+            activities: str = Form(""),
+            keywords: str = Form(""),
+            certifications: str = Form(""),
+            regions: str = Form(""),
+            excluded_agencies: str = Form(""),
+            min_value_sar: str = Form(""),
+            max_value_sar: str = Form(""),
+        ):
+            check_lang(lang)
+            form = dict(
+                name=name, name_ar=name_ar, activities=activities, keywords=keywords, certifications=certifications,
+                regions=regions, excluded_agencies=excluded_agencies,
+                min_value_sar=min_value_sar, max_value_sar=max_value_sar,
+            )
+            with session_scope(engine) as s:
+                new_id = new_profile_id(name, [p.id for p in list_profiles(s)])
+                created, error = profile_from_form(new_id, form, lang)
+                if created is None:
+                    html = render_add_company(s, current_day(), False, lang=lang, values=form, error=error)
+                    return HTMLResponse(html, status_code=422)
+                save_profile(s, created)
+            try:
+                ai = get_ai()
+            except ValueError:
+                ai = None  # saved anyway; the company's matches fill in once AI is configured
+            if ai is not None:
+                with session_scope(engine) as s:
+                    run_matching(s, created, ai, current_day())
+            return RedirectResponse(f"/{lang}/c/{created.id}/", status_code=303)
 
     app.state.engine = engine
     app.state.settings = settings

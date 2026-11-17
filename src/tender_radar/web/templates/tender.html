@@ -1,50 +1,98 @@
 {% extends "base.html" %}
 {% block title %}{{ tender.reference }}{% endblock %}
+{# The page where a bid team decides: verdict and key numbers first, then the
+   next steps, the timeline, why (AI + free rules), and the full details. #}
 {% block content %}
 <div class="wrap stack">
   <a class="back" href="{{ links.matches() }}">{{ "→" if lang == "ar" else "←" }} {{ t("back_to_matches") }}</a>
-  <article class="panel panel-pad stack">
+
+  <header>
     <p class="lbl">{{ t("reference") }} {{ tender.reference }} · {{ orig(*vocab(tender.tender_type)) }}</p>
-    <h1>{{ orig(*title) }}</h1>
+    <h1 style="margin-top:6px">{{ orig(*title) }}</h1>
+    <p class="muted" style="margin-top:4px">{{ orig(*agency) }}</p>
+  </header>
 
-    {% if match and match.status == "scored" %}
-    <div class="score-box">
+  <section class="decide">
+    <div class="panel panel-pad verdict{% if verdict %} {{ verdict }}{% endif %}">
+      {% if match and match.status == "scored" %}
       <div class="ring-score" style="--p: {{ match.score }}"><span>{{ match.score }}</span></div>
-      <span>{{ t("ai_fit_for", company=name[0]) }}</span>
+      <div>
+        <b>{{ t(verdict) }}</b>
+        <span class="muted small">{{ t("ai_fit_for", company=name[0]) }}</span>
+      </div>
+      {% elif match and match.status == "filtered_out" %}
+      <div><b>{{ t("verdict_skip") }}</b><span class="muted small">{{ t("status_filtered") }}</span></div>
+      {% elif match %}
+      <div><b>{{ t("not_scored") }}</b><span class="muted small">{{ t("ai_retry") }}</span></div>
+      {% endif %}
     </div>
-    {% elif match and match.status == "filtered_out" %}
-    <div class="alert alert-warn">{{ t("status_filtered") }}</div>
-    {% elif match %}
-    <div class="alert alert-warn">{{ t("not_scored") }}</div>
-    {% endif %}
+    <div class="panel panel-pad kpi">
+      <span class="lbl">{{ t("estimated_value") }}</span>
+      <b>{{ fmt_sar(tender.estimated_value_sar) if tender.estimated_value_sar else "—" }}</b>
+      <span class="muted small">{{ t("booklet_price") }}: {{ booklet }}</span>
+    </div>
+    <div class="panel panel-pad kpi{% if tender.deadline and (tender.deadline - today).days <= 7 %} soon{% endif %}">
+      <span class="lbl">{{ t("deadline") }}</span>
+      <b>{{ days_label }}</b>
+      <span class="muted small">{{ fmt_date(tender.deadline) }}{% if tender.deadline and tender.deadline_time %} <span dir="ltr">{{ tender.deadline_time }}</span>{% endif %}</span>
+    </div>
+  </section>
 
+  <div class="actions" style="margin-top:14px">
+    {% if not links.read_only %}<a class="btn btn-primary" href="{{ links.reader() }}">{{ t("brief_booklet") }}</a>
+    {% elif has_sample_brief %}<a class="btn btn-primary" href="{{ links.sample_brief() }}">{{ t("brief_booklet") }}</a>{% endif %}
+    {% if tender.deadline %}<a class="btn btn-ghost" href="{{ links.calendar(tender.reference) }}" download>{{ t("add_calendar") }}</a>{% endif %}
+    {% if tender.source_url %}<a class="btn btn-ghost" href="{{ tender.source_url }}" target="_blank" rel="noopener">{{ t("view_on_etimad") }} ↗</a>{% endif %}
+  </div>
+
+  {% if timeline %}
+  <section class="panel panel-pad">
+    <h2 class="lbl">{{ t("timeline") }}</h2>
+    <div class="timeline" role="img" aria-label="{{ t('timeline') }}">
+      <div class="tl-bar"><div class="tl-done" style="inline-size: {{ timeline.today }}%"></div></div>
+      {% for p in timeline.points %}<i class="tl-dot{{ ' past' if p.past }}{{ ' end' if p.key == 'tl_deadline' }}" style="inset-inline-start: {{ p.pct }}%"></i>{% endfor %}
+      <span class="tl-today" style="inset-inline-start: {{ timeline.today }}%">{{ t("today") }}</span>
+    </div>
+    <ol class="tl-legend">
+      {% for p in timeline.points %}<li class="{{ 'past' if p.past }}{{ ' end' if p.key == 'tl_deadline' }}"><i></i><span class="muted">{{ t(p.key) }}</span> <b>{{ p.date }}</b></li>{% endfor %}
+    </ol>
+  </section>
+  {% endif %}
+
+  <div class="grid-2">
     {% if reasons %}
-    <section>
-      <h2>{{ t("why") }}</h2>
-      <ul class="bullets" style="margin-top:8px">{% for x in reasons %}<li>{{ x }}</li>{% endfor %}</ul>
+    <section class="panel panel-pad">
+      <h2 class="lbl">{{ t("ai_reasons") if match and match.status == "scored" else t("why") }}</h2>
+      <ul class="bullets" style="margin-top:10px">{% for x in reasons %}<li>{{ x }}</li>{% endfor %}</ul>
     </section>
     {% endif %}
+    <section class="panel panel-pad">
+      <h2 class="lbl">{{ t("profile_check") }}</h2>
+      <p class="muted small" style="margin-top:4px">{{ t("profile_check_hint") }}</p>
+      <ul class="checks">
+        {% for c in checks %}<li class="check {{ c.status }}"><span class="mark" aria-hidden="true">{{ {"pass": "✓", "fail": "✕", "unknown": "?"}[c.status] }}</span><span>{{ c.text }}</span></li>{% endfor %}
+      </ul>
+    </section>
+  </div>
 
-    <dl class="facts-list">
+  {% if description %}
+  <section class="panel panel-pad">
+    <h2 class="lbl">{{ t("description") }}</h2>
+    <p style="margin-top:8px">{{ description }}</p>
+  </section>
+  {% endif %}
+
+  <section class="panel panel-pad">
+    <h2 class="lbl">{{ t("facts") }}</h2>
+    <dl class="facts-list" style="margin-top:10px">
       <div><dt>{{ t("agency") }}</dt><dd>{{ orig(*agency) }}</dd></div>
       <div><dt>{{ t("activity") }}</dt><dd>{{ orig(*vocab(tender.activity)) }}</dd></div>
       <div><dt>{{ t("region") }}</dt><dd>{% if region %}{{ orig(*region) }}{% if region_inferred %} <span class="muted">({{ t("from_agency") }})</span>{% endif %}{% else %}—{% endif %}</dd></div>
       <div><dt>{{ t("deadline") }}</dt><dd>{{ fmt_date(tender.deadline) }}{% if tender.deadline_time %} <span dir="ltr">{{ tender.deadline_time }}</span>{% endif %} · {{ days_label }}</dd></div>
       <div><dt>{{ t("inquiries_until") }}</dt><dd>{{ fmt_date(tender.inquiry_deadline) }}</dd></div>
       <div><dt>{{ t("booklet_price") }}</dt><dd>{{ booklet }}</dd></div>
-      <div><dt>{{ t("estimated_value") }}</dt><dd>{{ fmt_sar(tender.estimated_value_sar) if tender.estimated_value_sar else "—" }}</dd></div>
       <div><dt>{{ t("published") }}</dt><dd>{{ fmt_date(tender.published_on) }}</dd></div>
     </dl>
-
-    {% if description %}
-    <section>
-      <h2>{{ t("description") }}</h2>
-      <p style="margin-top:6px">{{ description }}</p>
-    </section>
-    {% endif %}
-    {% if tender.source_url %}
-    <a href="{{ tender.source_url }}" target="_blank" rel="noopener">{{ t("view_on_etimad") }} ↗</a>
-    {% endif %}
-  </article>
+  </section>
 </div>
 {% endblock %}

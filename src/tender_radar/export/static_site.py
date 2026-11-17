@@ -6,7 +6,9 @@ folder anyone can open without a server: no running cost, and it is never
 "asleep" when a recruiter clicks the link.
 
 Layout, once per language (en/, ar/): index.html (home), companies.html,
-c/<id>/index.html (matches), c/<id>/tenders/<slug>.html, briefs/sample.html.
+companies/new.html (add-a-company preview),
+c/<id>/index.html (matches), c/<id>/tenders/<slug>.html,
+calendar/<slug>.ics, briefs/sample.html.
 The root index.html sends visitors to en/; static/ is shared.
 Only synthetic seed tenders are written; imported Etimad tenders stay private.
 """
@@ -19,6 +21,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from tender_radar.calendar_ics import tender_ics
 from tender_radar.models import CompanyProfile
 from tender_radar.repository import latest_brief, latest_brief_id, list_answers
 from tender_radar.web import i18n
@@ -26,6 +29,7 @@ from tender_radar.web.app import (
     SAMPLE_BOOKLET,
     STATIC_DIR,
     _rows,
+    render_add_company,
     render_brief,
     render_companies,
     render_dashboard,
@@ -44,7 +48,7 @@ class ExportError(Exception):
 
 def _write(path: Path, html: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(html, encoding="utf-8")
+    path.write_text(html, encoding="utf-8", newline="")  # write as is: .ics files need their exact CRLF line ends
     return path
 
 
@@ -82,6 +86,8 @@ def export_site(session: Session, profiles: list[CompanyProfile], today: date, o
         written.append(_write(base / "index.html", render_home(session, today, lang, static_files=True)))
         html = render_companies(session, today, read_only=True, static_files=True, lang=lang)
         written.append(_write(base / "companies.html", html))
+        html = render_add_company(session, today, read_only=True, static_files=True, lang=lang)
+        written.append(_write(base / "companies" / "new.html", html))  # a disabled preview, no form
         for profile in profiles:
             company_dir = base / "c" / profile.id
             html = render_dashboard(session, profile, today, read_only=True, static_files=True, lang=lang)
@@ -91,6 +97,8 @@ def export_site(session: Session, profiles: list[CompanyProfile], today: date, o
                 ref = row.tender.reference
                 html = render_tender(session, ref, profile, today, read_only=True, static_files=True, lang=lang)
                 written.append(_write(company_dir / "tenders" / f"{tender_slug(ref)}.html", html))
+                if row.tender.deadline:  # the page's "Add to calendar" file
+                    written.append(_write(base / "calendar" / f"{tender_slug(ref)}.ics", tender_ics(row.tender, lang)))
         if sample is not None:
             qa = list_answers(session, sample_id, lang=lang)  # "Ask the booklet" examples in this language
             html = render_brief(sample[1], sample[0], read_only=True, static_files=True, qa=qa, lang=lang, session=session)

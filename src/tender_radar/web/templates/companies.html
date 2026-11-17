@@ -16,6 +16,10 @@
         {% if c.best is not none %}<span class="muted">· {{ t("best_fit") }} <b style="color:var(--head)">{{ c.best }}</b></span>{% endif %}</p>
     </a>
     {% endfor %}
+    <a class="panel card card-add" href="{{ links.add_company() }}">
+      <h2>+ {{ t("add_company_card") }}</h2>
+      <p class="muted small" style="margin-top:4px">{{ t("add_company_card_sub") }}</p>
+    </a>
   </div>
 </div>
 {% endblock %}
