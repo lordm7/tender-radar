@@ -82,3 +82,75 @@ def test_tender_page_shows_inferred_region(client):
     assert "Eastern Province" in html and "(from the agency name)" in html
     arabic = client.get("/ar/c/najd-digital/tenders/000000001003").text
     assert "المنطقة الشرقية" in arabic and "(مستنتجة من اسم الجهة)" in arabic
+
+
+# --- matches page polish (2026-11-17) ---
+# Conftest scores: 95, 82 -> worth bidding; 75, 71, 66, 60, 58, 50 -> closer look; 40 -> skip.
+
+from tender_radar.models import MatchResult  # noqa: E402
+from tender_radar.repository import get_tender, list_matches, save_match, tender_content_hash  # noqa: E402
+
+IT = "najd-digital"
+
+
+def restore(settings, ref, **changes):
+    engine = make_engine(settings.database_url)
+    with session_scope(engine) as s:
+        m = next(m for m in list_matches(s, IT) if m.tender_reference == ref)
+        save_match(s, m.model_copy(update=changes), tender_content_hash(get_tender(s, ref)))
+    engine.dispose()
+
+
+def selected(html: str) -> str:
+    return html.split('id="selected"', 1)[1].split("</section>", 1)[0]
+
+
+def test_header_counts_by_verdict(client):
+    html = client.get(f"/en/c/{IT}/").text
+    assert "<b>2</b> worth bidding" in html and "<b>6</b> worth a closer look" in html
+    assert "worth a look" not in html
+
+
+def test_list_grouped_by_verdict(client):
+    html = client.get(f"/en/c/{IT}/").text
+    heads = re.findall(r'<li class="group"[^>]*>([^<]+)<', html)
+    assert [h.strip() for h in heads] == ["Worth bidding (2)", "Worth a closer look (6)", "Probably skip (1)"]
+
+
+def test_row_shows_agency_value_and_days(client):
+    html = client.get(f"/en/c/{IT}/").text
+    row = html.split('data-reference="000000001004"', 1)[1].split("</li>", 1)[0]
+    assert "2,200,000 SAR" in row and "Coastal Governorate Municipality" in row and "days left" in row
+
+
+def test_selected_panel_shows_verdict_and_parts(client):
+    sel = selected(client.get(f"/en/c/{IT}/").text)
+    assert 'id="sel-verdict"' in sel and "Worth bidding" in sel
+    assert 'id="sel-parts"' in sel and sel.count('class="part ') == 3
+
+
+def test_selected_panel_without_parts_shows_reason(db_settings):
+    restore(db_settings, "000000001004", parts=None, reasons_en=["old reason"], reasons_ar=["سبب قديم"])
+    sel = selected(TestClient(create_app(db_settings, today=TODAY)).get(f"/en/c/{IT}/").text)
+    assert "old reason" in sel and sel.count('class="part ') == 0
+
+
+def test_unscored_tender_in_its_own_group(db_settings):
+    restore(db_settings, "000000001001", status="unscored", score=None, parts=None)
+    html = TestClient(create_app(db_settings, today=TODAY)).get(f"/en/c/{IT}/").text
+    assert "Not scored yet (1)" in html
+
+
+def test_groups_in_arabic(client):
+    html = client.get(f"/ar/c/{IT}/").text
+    assert "تستحق التقديم (2)" in html and "تستحق نظرة أدق (6)" in html
+
+
+def test_companies_card_uses_verdict_numbers(db_settings):
+    engine = make_engine(db_settings.database_url)
+    with session_scope(engine) as s:
+        from tender_radar.web.app import render_companies
+        html = render_companies(s, TODAY, read_only=False)
+    engine.dispose()
+    assert "<span class=\"big\">2</span> worth bidding" in html and "6 worth a closer look" in html
+    assert "worth a look" not in html

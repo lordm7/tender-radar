@@ -159,5 +159,5 @@ def test_dashboard_embeds_page_language_data_and_preselects_the_best(client):
 
 def test_dashboard_header_numbers(client):
     html = client.get(f"/en/c/{IT}/").text
-    assert re.search(r'<b[^>]*>9</b>\s*worth a look', html)
+    assert re.search(r'<b[^>]*>2</b>\s*worth bidding', html) and re.search(r'<b[^>]*>6</b>\s*worth a closer look', html)
     assert re.search(r'<b[^>]*>21</b>\s*filtered by rules', html)

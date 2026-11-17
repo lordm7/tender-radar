@@ -357,7 +357,12 @@ def _tender_card(row: Row, links: Links, lang: str) -> dict:
     score = row.match.score if row.match and row.match.status == "scored" else None
     found = reasons(row.match, lang)
     x, y = radar_point(t.reference, score)
+    verdict = verdict_key(row.match)
     return {
+        "verdict": verdict,
+        "verdict_text": i18n.t(lang, verdict) if verdict else "",
+        "value": i18n.fmt_sar(lang, t.estimated_value_sar) if t.estimated_value_sar else "",
+        "parts": score_parts(row.match, lang),
         "ref": t.reference,
         "score": score,
         "title": title,
@@ -381,7 +386,8 @@ def _tender_card(row: Row, links: Links, lang: str) -> dict:
 
 def _radar_json(cards: list[dict]) -> Markup:
     """Data for app.js, embedded in the page (no extra request, works on GitHub Pages)."""
-    keys = ("ref", "score", "title", "title_orig", "reason", "closes", "days_label", "booklet", "inquiries", "url")
+    keys = ("ref", "score", "title", "title_orig", "reason", "closes", "days_label", "booklet", "inquiries", "url",
+            "verdict", "verdict_text", "parts")
     payload = json.dumps([{k: c[k] for k in keys} for c in cards], ensure_ascii=False)
     return Markup(payload.replace("<", "\\u003c"))  # never let data close the <script> tag
 
@@ -437,6 +443,9 @@ def render_companies(
             "name": company_name(profile, lang),
             "activities": [text for text, original in activities if not original],
             "count": len(results),
+            # Same numbers as the matches page header (verdict bands).
+            "bid": sum(1 for r in results if verdict_key(r.match) == "verdict_bid"),
+            "consider": sum(1 for r in results if verdict_key(r.match) == "verdict_consider"),
             "best": max(scored, default=None),
         })
     links = _links(lang, read_only, static_files, ("companies",), session=session)
@@ -453,17 +462,23 @@ def render_dashboard(
     cards = [_tender_card(r, links, lang) for r in results]
     filtered_cards = [_tender_card(r, links, lang) for r in filtered]
     agencies = sorted({(c["agency_raw"], c["agency"], c["agency_orig"]) for c in cards}, key=lambda a: a[1])
-    regions = {tender_region(r.tender)[0] for r in results} - {None}
     stats = {
-        "worth": len(results),
+        "bid": sum(1 for c in cards if c["verdict"] == "verdict_bid"),
+        "consider": sum(1 for c in cards if c["verdict"] == "verdict_consider"),
         "filtered": len(filtered),
         "closing": sum(1 for c in cards if c["soon"]),
-        "regions": len(regions),
     }
+    # The list is grouped by verdict, in the order of the score bands; empty groups are left out.
+    groups = []
+    for key in ("verdict_bid", "verdict_consider", "verdict_skip", None):
+        members = [c for c in cards if c["verdict"] == key]
+        if members:
+            groups.append({"key": key or "unscored", "label": i18n.t(lang, key or "group_unscored"), "cards": members})
     return templates.get_template("dashboard.html").render(
         profile=profile,
         name=company_name(profile, lang),
         cards=cards,
+        groups=groups,
         filtered=filtered_cards,
         faint=[(c["x"], c["y"]) for c in filtered_cards],
         agencies=agencies,

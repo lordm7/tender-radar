@@ -12,7 +12,7 @@
     <a class="panel card" href="{{ links.dashboard_of(c.profile.id) }}">
       <h2>{{ orig(c.name[0], c.name[1], tag=False) }}</h2>
       <p class="muted small" style="margin-top:4px">{{ c.activities|join(" · ") }}</p>
-      <p style="margin-top:14px"><span class="big">{{ c.count }}</span> {{ t("worth_a_look") }}
+      <p style="margin-top:14px"><span class="big">{{ c.bid }}</span> {{ t("n_bid") }} <span class="muted">· {{ c.consider }} {{ t("n_consider") }}</span>
         {% if c.best is not none %}<span class="muted">· {{ t("best_fit") }} <b style="color:var(--head)">{{ c.best }}</b></span>{% endif %}</p>
     </a>
     {% endfor %}

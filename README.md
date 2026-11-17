@@ -12,7 +12,8 @@ Built for Saudi B2B companies: thousands of tenders appear on [Etimad](https://t
 
 | | |
 |---|---|
-| **Match** | A free rule filter (keywords, deadline, contract value, region, excluded agencies) runs first. An AI model then scores each remaining tender 0–100, with reasons in English and Arabic. |
+| **Match** | A free rule filter (keywords, deadline, contract value, region, excluded agencies) runs first. An AI model then judges each remaining tender in three parts — **fit**, **ability** and **risk**, each 0–100 with a reason in English and Arabic, plus any hard blocker and what to prepare. Python turns the parts into one score (50% fit + 30% ability + 20% low risk, capped at 40 with a blocker), so the AI measures and the business rules decide. The matches page groups tenders by verdict: worth bidding, worth a closer look, probably skip. |
+| **How it works page** | `/en/how` walks through the whole pipeline with live numbers from the data, and traces one tender from the rule checks to the AI parts to the score sum. |
 | **Several companies** | The same tenders are matched against each company's profile. The demo has an IT services firm and a contracting & maintenance firm. |
 | **Read a booklet** | Upload a tender booklet PDF (كراسة الشروط) and get the scope, deliverables, key dates, eligibility, required documents, evaluation criteria and risks. You also get a go/no-go checklist against the company's certifications. |
 | **Ask the booklet** | Ask a question in Arabic or English ("What is the late-delivery penalty?") and get a short answer from the booklet itself, with the page it came from. If the booklet doesn't say, it says so instead of guessing. |
@@ -122,6 +123,7 @@ uvicorn tender_radar.web.app:create_app --factory   # http://127.0.0.1:8000/en/ 
 | Fake AI (always 70) | 19/26 | 0/6 | all 70 |
 | Gemini, first prompt | 25/26 | 6/6 | almost all exactly 90 |
 | Gemini, calibrated prompt | **26/26** | **6/6** | spread from 62 to 92 |
+| Gemini, three-part score | **26/26** | **6/6** | 85–90 for clear fits; two hard cases near the line (57, 63) |
 
 - **What changed in the prompt:** check the main deliverable first, then list every licence or certificate the tender requires and compare it with the profile. A missing one is a hard blocker that caps the score at 40. Use the whole 0–100 scale.
 - **Limits:** one run with `gemini-3.5-flash-lite` on a small synthetic set. The trap labels were proposed during development and are waiting for my own review. Free-tier models also vary from run to run.

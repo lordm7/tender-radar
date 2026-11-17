@@ -11,6 +11,34 @@
   const dots = Array.from(document.querySelectorAll(".radar .dot[data-ref]"));
   const $ = (id) => document.getElementById(id);
 
+  // The AI's fit / ability / risk bars and the blocker line (built with textContent only).
+  function showParts(parts) {
+    const list = $("sel-parts"), blocker = $("sel-blocker");
+    const labels = JSON.parse(list.dataset.labels);
+    list.replaceChildren();
+    blocker.hidden = !(parts && parts.blocker);
+    blocker.querySelector("span").textContent = parts && parts.blocker ? parts.blocker : "";
+    if (!parts) return;
+    for (const p of parts.rows) {
+      const li = document.createElement("li");
+      li.className = "part " + p.key;
+      const head = document.createElement("div");
+      head.className = "part-head";
+      const name = document.createElement("span");
+      name.textContent = labels[p.key];
+      const value = document.createElement("b");
+      value.textContent = p.value;
+      head.append(name, value);
+      const bar = document.createElement("div");
+      bar.className = "part-bar";
+      const fill = document.createElement("i");
+      fill.style.inlineSize = p.value + "%";
+      bar.append(fill);
+      li.append(head, bar);
+      list.append(li);
+    }
+  }
+
   function select(ref) {
     const t = byRef.get(ref);
     if (!t || !$("sel-title")) return;
@@ -20,7 +48,12 @@
     title.textContent = t.title;
     if (t.title_orig) { title.setAttribute("lang", "ar"); title.setAttribute("dir", "rtl"); }
     else { title.removeAttribute("lang"); title.removeAttribute("dir"); }
+    const verdict = $("sel-verdict");
+    verdict.textContent = t.verdict_text;
+    verdict.className = "sel-verdict " + (t.verdict || "");
+    showParts(t.parts);
     $("sel-reason").textContent = t.reason;
+    $("sel-reason").hidden = Boolean(t.parts);
     $("sel-closes").textContent = t.closes + " · " + t.days_label;
     $("sel-booklet").textContent = t.booklet;
     $("sel-inquiries").textContent = t.inquiries;
@@ -68,6 +101,11 @@
       if (dot) dot.style.opacity = ok ? "" : "0.15";
       if (ok) shown++;
     }
+    // A group heading hides when the filters hide every tender in it.
+    document.querySelectorAll("#results .group").forEach((g) => {
+      const members = Array.from(document.querySelectorAll('#results li[data-group="' + g.dataset.group + '"]:not(.group)'));
+      g.style.display = members.some((li) => li.style.display !== "none") ? "" : "none";
+    });
     count.textContent = count.dataset.template.replace("{shown}", shown).replace("{total}", rows.length);
   }
   [score, agency, days].forEach((el) => el.addEventListener("change", apply));

@@ -9,14 +9,15 @@
       <h1>{{ orig(name[0], name[1], tag=False) }}</h1>
     </div>
     <div class="numbers">
-      <div><b>{{ stats.worth }}</b> {{ t("worth_a_look") }}</div>
+      <div class="good"><b>{{ stats.bid }}</b> {{ t("n_bid") }}</div>
+      <div><b>{{ stats.consider }}</b> {{ t("n_consider") }}</div>
       <div><b>{{ stats.filtered }}</b> {{ t("filtered_by_rules") }}</div>
       <div class="warn"><b>{{ stats.closing }}</b> {{ t("closes_this_week") }}</div>
-      <div><b>{{ stats.regions }}</b> {{ t("regions") }}</div>
     </div>
   </div>
 
   <div class="mc">
+    <div class="mc-side">
     <section class="panel radar-panel" aria-label="{{ t('fit_radar') }}">
       <div class="lbl">{{ t("fit_radar") }}</div>
       {{ radar(cards, faint, t("radar_label"), selected=cards[0].ref if cards else None) }}
@@ -31,7 +32,15 @@
         <div class="ring-score" id="sel-ring" style="--p: {{ s.score or 0 }}"><span id="sel-score">{{ s.score if s.score is not none else "—" }}</span></div>
         <div class="sel-title" id="sel-title">{{ orig(s.title, s.title_orig) }}</div>
       </div>
-      <p id="sel-reason" style="margin-top:10px;font-size:.9rem">{{ s.reason }}</p>
+      <p class="sel-verdict {{ s.verdict or '' }}" id="sel-verdict">{{ s.verdict_text }}</p>
+      {% if s.parts and s.parts.blocker %}<p class="alert alert-error sel-blocker" id="sel-blocker"><b>{{ t("blocker") }}:</b> <span>{{ s.parts.blocker }}</span></p>
+      {% else %}<p class="alert alert-error sel-blocker" id="sel-blocker" hidden><b>{{ t("blocker") }}:</b> <span></span></p>{% endif %}
+      <ul class="parts" id="sel-parts" data-labels='{"fit": "{{ t("part_fit") }}", "ability": "{{ t("part_ability") }}", "risk": "{{ t("part_risk") }}"}'>
+        {% if s.parts %}{% for p in s.parts.rows %}
+        <li class="part {{ p.key }}"><div class="part-head"><span>{{ t("part_" ~ p.key) }}</span><b>{{ p.value }}</b></div><div class="part-bar"><i style="inline-size: {{ p.value }}%"></i></div></li>
+        {% endfor %}{% endif %}
+      </ul>
+      <p id="sel-reason" class="muted small" style="margin-top:8px"{% if s.parts %} hidden{% endif %}>{{ s.reason }}</p>
       <div class="facts">
         <div><span class="lbl">{{ t("closes") }}</span><span id="sel-closes">{{ s.closes }} · {{ s.days_label }}</span></div>
         <div><span class="lbl">{{ t("booklet") }}</span><span id="sel-booklet">{{ s.booklet }}</span></div>
@@ -46,6 +55,7 @@
       <p class="muted" style="margin-top:10px">{{ t("no_matches") }}</p>
       {% endif %}
     </section>
+    </div>
 
     <section class="panel" aria-label="{{ t('all_matches') }}" style="overflow:hidden">
       <div class="list-head">
@@ -62,12 +72,18 @@
         </div>
       </div>
       <ul class="rows" id="results">
-        {% for c in cards %}
-        <li><a class="row{{ ' sel' if loop.first }}" href="{{ c.url }}" data-reference="{{ c.ref }}"
+        {% for g in groups %}
+        <li class="group" data-group="{{ g.key }}">{{ g.label }} ({{ g.cards|length }})</li>
+        {% for c in g.cards %}
+        <li data-group="{{ g.key }}"><a class="row{{ ' sel' if c.ref == cards[0].ref }}" href="{{ c.url }}" data-reference="{{ c.ref }}"
              data-score="{{ c.score if c.score is not none else 0 }}" data-agency="{{ c.agency_raw }}" data-days-left="{{ c.days if c.days is not none else '' }}">
-          {{ score_badge(c.score) }}<span class="title">{{ orig(c.title, c.title_orig, tag=False) }}</span>
-          <span class="left{{ ' soon' if c.soon }}">{{ c.days_label }}</span>
+          {{ score_badge(c.score) }}
+          <span class="row-main">
+            <span class="title">{{ orig(c.title, c.title_orig, tag=False) }}</span>
+            <span class="meta">{{ orig(c.agency, c.agency_orig, tag=False) }}{% if c.value %} · <bdi>{{ c.value }}</bdi>{% endif %} · <span class="left{{ ' soon' if c.soon }}">{{ c.days_label }}</span></span>
+          </span>
         </a></li>
+        {% endfor %}
         {% else %}
         <li class="count">{{ t("no_matches") }}</li>
         {% endfor %}
