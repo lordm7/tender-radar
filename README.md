@@ -160,4 +160,3 @@ So the defensible claim is *"on a 26-tender labelled set, including 6 look-alike
 - [x] Calibrate scoring with harder evaluation cases
 - [ ] Official data source once permission or open data is available
 - [x] Visual design refresh: dark, calm style, a fit radar, separate English and Arabic pages
-- [ ] A 2-minute demo video
