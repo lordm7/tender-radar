@@ -399,7 +399,7 @@ def _has_sample(session: Session) -> bool:
 # --- render functions ------------------------------------------------------------
 
 def render_home(session: Session, today: date, lang: str = "en", static_files: bool = False) -> str:
-    """The home / about page. Always public-only: it is the page recruiters see."""
+    """The home / about page. Always public-only: it is the first page visitors see."""
     profiles = list_profiles(session)
     public = [t for t in list_tenders(session) if is_public(t)]
     total_checks = filtered_checks = 0

@@ -3,7 +3,7 @@
 It reuses the exact page functions the live app uses, with static_files=True,
 so links become relative .html files and forms disappear. The result is a
 folder anyone can open without a server: no running cost, and it is never
-"asleep" when a recruiter clicks the link.
+"asleep" when a visitor clicks the link.
 
 Layout, once per language (en/, ar/): index.html (home), companies.html,
 companies/new.html (add-a-company preview), how.html (How it works),

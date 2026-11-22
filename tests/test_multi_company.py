@@ -119,10 +119,10 @@ def test_export_removes_stale_files(two_companies, tmp_path):
 def test_export_refuses_to_clear_a_folder_it_did_not_create(two_companies, tmp_path):
     precious = tmp_path / "my-documents"
     precious.mkdir()
-    (precious / "cv.docx").write_text("important", encoding="utf-8")
+    (precious / "report.docx").write_text("important", encoding="utf-8")
     with pytest.raises(ExportError):
         export(two_companies, precious)
-    assert (precious / "cv.docx").exists()
+    assert (precious / "report.docx").exists()
 
 
 def test_slug_avoids_collisions():
