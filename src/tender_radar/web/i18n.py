@@ -58,7 +58,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "step_decide": "Decide",
         "step_decide_text": "Booklet PDFs become a one-page brief with key dates, eligibility, risks and a go / no-go checklist. Ask it questions; answers cite the page.",
         "about_title": "About",
-        "about_text": "A portfolio project: a working AI and automation pipeline for Saudi B2B bid teams, built in Python with FastAPI and Gemini, and run for free on GitHub Actions and Pages.",
+        "about_text": "An AI and automation pipeline for Saudi B2B bid teams. Built in Python with FastAPI and Gemini, and runs for free on GitHub Actions and Pages.",
         "preview_label": "Product preview",
         # companies
         "choose_company": "Choose a company",
@@ -308,7 +308,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "step_decide": "قرار",
         "step_decide_text": "تتحول كراسات الشروط إلى ملخص من صفحة واحدة بالتواريخ وشروط التأهيل والمخاطر وقائمة قرار المشاركة. اسألها، وتأتي الإجابة مع رقم الصفحة.",
         "about_title": "نبذة",
-        "about_text": "مشروع لمعرض الأعمال: منظومة ذكاء اصطناعي وأتمتة عاملة لفرق المنافسات في الشركات السعودية، مبنية بلغة بايثون ونموذج ذكاء اصطناعي مجاني، وتعمل دون أي تكلفة على خدمات تشغيل واستضافة مجانية.",
+        "about_text": "منظومة ذكاء اصطناعي وأتمتة لفرق المنافسات في الشركات السعودية. مبنية بلغة بايثون ونموذج ذكاء اصطناعي مجاني، وتعمل دون أي تكلفة على خدمات تشغيل واستضافة مجانية.",
         "preview_label": "معاينة المنتج",
         "choose_company": "اختر شركة",
         "choose_company_sub": "المنافسات نفسها، مطابَقة مع ملف المنافسة الخاص بكل شركة.",
