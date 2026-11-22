@@ -103,7 +103,7 @@ uvicorn tender_radar.web.app:create_app --factory   # http://127.0.0.1:8000/en/ 
 
 > Upgrading from an older checkout: an old database gets the new columns automatically. Delete any `site/` folder made by a version before the export marker, and run `seed` again. Old links (`/c/…`, `/reader`, `/briefs/…`) redirect to the English pages.
 
-**Tests:** `pytest -q` (198 tests; they use the fake AI and never touch the network or send email).
+**Tests:** `pytest -q` (290 tests; they use the fake AI and never touch the network or send email).
 
 ## Cost: zero
 
@@ -139,7 +139,7 @@ So the defensible claim is *"on a 26-tender labelled set, including 6 look-alike
 - **What this project does instead:**
   - **The public demo is synthetic.** The export refuses to include anything but seed data, and tests enforce that.
   - **Real tenders come only from a person.** They copy or save the public list in a normal browser, then run `import`. They are never published: they stay in the local database, their title, agency and activity are sent to the AI provider for scoring, and they appear only in the owner's own email digest. Imported files live in the git-ignored `data/imports/`.
-  - **A written permission request** to NCGR, the operator of Etimad, has been drafted ([docs/etimad-permission-request.md](docs/etimad-permission-request.md)). Automatic collection or public use of real data waits for that answer, or for an official open-data source.
+  - **A written permission request** to NCGR, the operator of Etimad, has been drafted. Automatic collection or public use of real data waits for that answer, or for an official open-data source.
 - **Booklets:** the sample booklet is synthetic. Don't upload confidential company documents while using the free AI tier: Google may use free-tier inputs to improve its models.
 
 ## What I did / what AI did
@@ -152,7 +152,7 @@ So the defensible claim is *"on a 26-tender labelled set, including 6 look-alike
 - labelled the evaluation set (the 6 trap tenders were proposed by the AI agent; I review their labels)
 - decided how to handle the data source
 
-**AI coding agents (Claude Code):** wrote the code test-first from those written specs and plans, under my direction. The design, plans and decision logs are in `docs/superpowers/`. I'm working through every module so I can explain how and why it works.
+**AI coding agents (Claude Code):** wrote the code test-first from written specs and plans, under my direction. I can walk through every module and explain how and why it works.
 
 ## Roadmap
 
